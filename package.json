@@ -1,0 +1,18 @@
+{
+  "name": "isolated-content-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "dev": "node scripts/astro.mjs dev --host 127.0.0.1",
+    "build": "node scripts/astro.mjs build",
+    "check": "node scripts/astro.mjs check",
+    "preview": "node scripts/astro.mjs preview --host 127.0.0.1",
+    "test:unit": "node --test tests/schemas.test.ts tests/markdown.test.ts",
+    "test:integration": "node --test --test-concurrency=1 tests/build.test.ts",
+    "test": "npm run test:unit && npm run test:integration"
+  },
+  "dependencies": { "@astrojs/markdown-satteri": "0.4.3", "astro": "7.3.8", "sharp": "0.35.4", "yaml": "2.8.2" },
+  "devDependencies": { "@astrojs/check": "0.9.9", "@types/node": "24.10.0", "typescript": "5.9.3" }
+}

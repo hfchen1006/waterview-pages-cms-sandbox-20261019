@@ -1,0 +1,21 @@
+{
+  "propertyId": "fictional-maple-flat",
+  "publicationStatus": "published",
+  "title": "Fictional Maple Flat",
+  "location": "Imaginary District, Example City",
+  "monthlyRent": 1250,
+  "bedrooms": 2,
+  "bathrooms": 1.5,
+  "squareFeet": 820,
+  "availability": "available",
+  "description": "A fictional development-only apartment used to exercise public property rendering.",
+  "images": [{
+    "src": "src/assets/uploads/published-property.png",
+    "alt": "Synthetic green and blue blocks representing Fictional Maple Flat",
+    "usage": {
+      "authorization": "synthetic",
+      "credit": "Content Lab synthetic fixture",
+      "authorizationReference": "Generated locally by scripts/generate-images.mjs; no third-party material"
+    }
+  }]
+}

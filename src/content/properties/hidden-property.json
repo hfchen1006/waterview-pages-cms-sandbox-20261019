@@ -1,0 +1,14 @@
+{
+  "propertyId": "fictional-hidden-property",
+  "publicationStatus": "hidden",
+  "title": "HIDDEN_PROPERTY_ONLY_SENTINEL",
+  "images": [{
+    "src": "src/assets/uploads/hidden-property.png",
+    "alt": "Hidden-only synthetic color grid for a fictional property",
+    "usage": {
+      "authorization": "synthetic",
+      "credit": "Content Lab synthetic fixture",
+      "authorizationReference": "Generated locally by scripts/generate-images.mjs; no third-party material"
+    }
+  }]
+}

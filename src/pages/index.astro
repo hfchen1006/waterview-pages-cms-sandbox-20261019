@@ -1,0 +1,57 @@
+---
+import { render } from 'astro:content';
+import { publishedProperties, publishedArticles } from '../lib/content/published.ts';
+import { mediaPaths } from '../lib/content/media-paths.ts';
+
+const properties = await publishedProperties();
+const articles = await Promise.all((await publishedArticles()).map(async ({ entry, data }) => ({
+  data, Content: (await render(entry)).Content,
+})));
+const availability = { available: 'Available', 'coming-soon': 'Coming Soon', unavailable: 'Unavailable' };
+const rent = (value: number | null) => value === null ? 'Contact for pricing' : `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)} / month`;
+---
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /><title>Fictional Content Lab</title></head>
+  <body>
+    <main>
+      <h1>Fictional Content Lab</h1>
+      <p>Development-only synthetic fixtures. These are not real listings or local guides.</p>
+      <section aria-labelledby="properties"><h2 id="properties">Properties</h2>
+        {properties.length === 0 ? <p data-fallback="coming-soon">Coming Soon — new fictional listings will appear here.</p> : properties.map((property) => (
+          <article data-property-id={property.propertyId}>
+            <h3>{property.title}</h3><p>{property.location}</p>
+            <p>{availability[property.availability]}</p><p>{rent(property.monthlyRent)}</p>
+            <p>{property.bedrooms === 0 ? 'Studio' : property.bedrooms === null ? 'Bedrooms not specified' : `${property.bedrooms} bedrooms`}
+              {' · '}{property.bathrooms === null ? 'Bathrooms not specified' : `${property.bathrooms} bathrooms`}
+              {' · '}{property.squareFeet === null ? 'Area not specified' : `${property.squareFeet} sq ft`}</p>
+            <p>{property.description}</p>
+            {property.images.map((image) => <figure>
+              <picture><source srcset={mediaPaths(image.src).transformed} type="image/webp" /><img src={mediaPaths(image.src).original} alt={image.alt} width="160" height="100" /></picture>
+              <figcaption>{image.usage.credit}</figcaption>
+            </figure>)}
+          </article>
+        ))}
+      </section>
+      <section aria-labelledby="guides"><h2 id="guides">Neighborhood Guides</h2>
+        {articles.map(({ data, Content }) => <article id={data.slug}>
+          <h3>{data.title}</h3><p>{data.area}</p><p>{data.summary}</p>
+          {data.updatedDate !== null && <p>Updated <time datetime={data.updatedDate}>{data.updatedDate}</time></p>}
+          {data.coverImage && <figure>
+            <picture><source srcset={mediaPaths(data.coverImage.src).transformed} type="image/webp" /><img src={mediaPaths(data.coverImage.src).original} alt={data.coverImage.alt} width="160" height="100" /></picture>
+            <figcaption>{data.coverImage.usage.credit}</figcaption>
+          </figure>}
+          <Content />
+          <h4>Sources</h4><ul>{data.sources.map((source) => <li><a href={source.url}>{source.title}</a></li>)}</ul>
+        </article>)}
+      </section>
+    </main>
+  </body>
+</html>
+<style>
+  body { font: 1rem/1.6 system-ui, sans-serif; color: #243542; background: #fafbfc; margin: 0; }
+  main { max-width: 62rem; margin: auto; padding: 2rem; }
+  article { border-top: 1px solid #cbd5df; padding: 1.5rem 0; }
+  figure { margin: 1rem 0; } img { max-width: 100%; height: auto; }
+  figcaption { font-size: .85rem; } a { color: #15587b; }
+</style>

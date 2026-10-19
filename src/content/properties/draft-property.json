@@ -1,0 +1,14 @@
+{
+  "propertyId": "fictional-draft-property",
+  "publicationStatus": "draft",
+  "title": "DRAFT_PROPERTY_ONLY_SENTINEL",
+  "images": [{
+    "src": "src/assets/uploads/draft-property.png",
+    "alt": "Draft-only synthetic color grid for a fictional property",
+    "usage": {
+      "authorization": "synthetic",
+      "credit": "Content Lab synthetic fixture",
+      "authorizationReference": "Generated locally by scripts/generate-images.mjs; no third-party material"
+    }
+  }]
+}
