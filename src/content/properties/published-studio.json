@@ -17,5 +17,7 @@
         "authorizationReference": "Generated locally by scripts/generate-images.mjs; no third-party material"
       }
     }
-  ]
+  ],
+  "monthlyRentState": "unknown",
+  "squareFeetState": "unknown"
 }
