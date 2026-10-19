@@ -1,0 +1,228 @@
+# Configuration candidate for a synthetic Pages CMS experiment; hosted saving is unverified.
+# Read README.md before using this in a disposable public sandbox.
+# Astro schemas, Markdown validation and published-media staging remain authoritative.
+
+media:
+  - name: uploads
+    label: Synthetic PNG uploads
+    input: src/assets/uploads
+    # Deliberately repository-relative, with NO leading slash or public/ mapping.
+    output: src/assets/uploads
+    extensions: [png]
+    rename: false
+
+components:
+  publication-status:
+    type: select
+    label: Publication status
+    default: draft
+    description: Draft is private in the built artifact. Published requires a valid candidate build. Hidden withdraws content after rebuilding.
+    options:
+      values:
+        - name: draft
+          label: Draft
+        - name: published
+          label: Published
+        - name: hidden
+          label: Hidden
+
+  controlled-image:
+    type: object
+    description: Optional until added. Each supplied image needs its path, alt text and complete usage metadata. Use a flat lowercase PNG filename beginning with a letter.
+    fields:
+      - name: src
+        label: PNG image
+        type: image
+        required: true
+        description: Use src/assets/uploads/example-name.png. Do not use URLs, folders, spaces, uppercase names or a leading slash.
+        options:
+          media: uploads
+          multiple: false
+          extensions: [png]
+          rename: false
+      - name: alt
+        label: Image description (alt text)
+        type: string
+        required: true
+        options:
+          minlength: 10
+        description: Describe the image meaningfully; generic labels such as placeholder are rejected by Astro.
+      - name: usage
+        label: Image usage authorization
+        type: object
+        required: true
+        fields:
+          - name: authorization
+            label: Authorization basis
+            type: select
+            required: true
+            options:
+              values: [synthetic, owned, licensed, permission]
+          - name: credit
+            label: Public credit
+            type: string
+            required: true
+          - name: authorizationReference
+            label: Permission or license reference
+            type: string
+            required: true
+            description: Record evidence without secrets or personal information. All source data in a public sandbox repository is public.
+
+content:
+  - name: properties
+    label: Properties
+    type: collection
+    path: src/content/properties
+    format: json
+    subfolders: false
+    filename:
+      template: '{fields.propertyId}.json'
+      field: false
+    operations:
+      create: true
+      rename: false
+      delete: false
+    view:
+      primary: title
+      fields: [title, propertyId, publicationStatus, availability]
+    fields:
+      - name: propertyId
+        label: Stable property ID
+        type: string
+        required: true
+        pattern:
+          regex: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'
+          message: Use a lowercase identifier beginning with a letter, with single hyphens between words.
+        description: Set once for a new property. Never change an existing ID. Duplicate IDs fail the Astro build.
+      - name: publicationStatus
+        component: publication-status
+      - name: title
+        label: Title
+        type: string
+      - name: location
+        label: Location
+        type: string
+      - name: monthlyRent
+        label: Monthly rent (USD)
+        type: number
+        options:
+          min: 0
+        description: Unknown rent requires JSON null for publication. Blank-to-null saving is unverified; never enter zero to mean unknown.
+      - name: bedrooms
+        label: Bedrooms
+        type: number
+        options:
+          min: 0
+        description: Whole numbers only; zero means Studio. Unknown requires null for publication. Astro enforces integral values.
+      - name: bathrooms
+        label: Bathrooms
+        type: number
+        options:
+          min: 0
+        description: Fractional values such as 1.5 are allowed. Unknown requires null for publication.
+      - name: squareFeet
+        label: Floor area (square feet)
+        type: number
+        options:
+          min: 0
+        description: Unknown requires null for publication; blank serialization needs sandbox verification.
+      - name: availability
+        label: Availability
+        type: select
+        description: Independent of publication status. Select before publication.
+        options:
+          values:
+            - name: available
+              label: Available
+            - name: coming-soon
+              label: Coming Soon
+            - name: unavailable
+              label: Unavailable
+      - name: description
+        label: Description
+        type: text
+        description: Plain text; at least 20 characters before publication.
+      - name: images
+        label: Property images
+        component: controlled-image
+        list: true
+        description: Optional in drafts; publication requires at least one complete image entry. Upload only synthetic fixtures in the sandbox.
+
+  - name: neighborhoods
+    label: Neighborhood Guides
+    type: collection
+    path: src/content/neighborhoods
+    format: yaml-frontmatter
+    subfolders: false
+    filename:
+      template: '{fields.slug}.md'
+      field: false
+    operations:
+      create: true
+      rename: false
+      delete: false
+    view:
+      primary: title
+      fields: [title, slug, publicationStatus, area]
+    fields:
+      - name: slug
+        label: Stable guide slug
+        type: string
+        required: true
+        pattern:
+          regex: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'
+          message: Use a lowercase identifier beginning with a letter, with single hyphens between words.
+        description: Set once for a new guide. Never change an existing slug. Duplicate slugs fail the Astro build.
+      - name: publicationStatus
+        component: publication-status
+      - name: title
+        label: Title
+        type: string
+      - name: area
+        label: Neighborhood or area
+        type: string
+      - name: summary
+        label: Summary
+        type: text
+        description: At least 20 characters before publication.
+      - name: updatedDate
+        label: Verified update date
+        type: date
+        # Documented way to suppress the CMS's automatic current-date default.
+        # This is a UI default, NOT a schema-valid content value. See null mismatch.
+        default: ''
+        options:
+          time: false
+          format: yyyy-MM-dd
+        description: Do not invent a date. Publication requires a verified YYYY-MM-DD date or explicit null; empty-date serialization needs sandbox verification.
+      - name: sources
+        label: Source references
+        type: object
+        list: true
+        description: Optional in drafts; publication requires at least one complete source.
+        fields:
+          - name: title
+            label: Source title
+            type: string
+            required: true
+          - name: url
+            label: Source URL
+            type: string
+            required: true
+            description: HTTPS without embedded credentials. Astro validates the URL.
+      - name: coverImage
+        label: Optional cover image
+        component: controlled-image
+      - name: body
+        label: Guide article
+        type: rich-text
+        description: Markdown with headings, lists and safe links. No embedded images or raw HTML. Publication requires at least 20 characters.
+        options:
+          format: markdown
+          media: false
+          switcher: true
+
+settings:
+  hide: true
+  content:
+    merge: true
