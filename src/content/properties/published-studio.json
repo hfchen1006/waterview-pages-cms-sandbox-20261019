@@ -3,19 +3,19 @@
   "publicationStatus": "published",
   "title": "Fictional Pixel Studio",
   "location": "Imaginary Quarter, Example City",
-  "monthlyRent": null,
   "bedrooms": 0,
   "bathrooms": 1,
-  "squareFeet": null,
   "availability": "coming-soon",
-  "description": "A synthetic studio with unspecified pricing and floor area, reserved for local tests.",
-  "images": [{
-    "src": "src/assets/uploads/published-studio.png",
-    "alt": "Synthetic colorful stripes representing Fictional Pixel Studio",
-    "usage": {
-      "authorization": "synthetic",
-      "credit": "Content Lab synthetic fixture",
-      "authorizationReference": "Generated locally by scripts/generate-images.mjs; no third-party material"
+  "description": "CMS sandbox save test.",
+  "images": [
+    {
+      "src": "src/assets/uploads/published-studio.png",
+      "alt": "Synthetic colorful stripes representing Fictional Pixel Studio",
+      "usage": {
+        "authorization": "synthetic",
+        "credit": "Content Lab synthetic fixture",
+        "authorizationReference": "Generated locally by scripts/generate-images.mjs; no third-party material"
+      }
     }
-  }]
+  ]
 }
