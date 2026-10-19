@@ -18,6 +18,7 @@
       }
     }
   ],
-  "monthlyRentState": "unknown",
-  "squareFeetState": "unknown"
+  "monthlyRentState": "known",
+  "squareFeetState": "unknown",
+  "monthlyRent": 1250
 }
