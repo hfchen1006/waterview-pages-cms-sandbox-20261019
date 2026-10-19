@@ -1,13 +1,13 @@
 import { readdir, readFile, mkdir, rm, realpath, lstat, copyFile } from 'node:fs/promises';
 import { dirname, resolve, relative, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse } from 'yaml';
 import sharp from 'sharp';
 import {
-  propertyStorageSchema, articleStorageSchema, readyProperty, readyArticle,
+  readyProperty, readyArticle,
   uploadPath, type ContentImage,
 } from './schemas.ts';
 import { validateMarkdown } from './markdown-security.ts';
+import { cmsPropertyStorageSchema, cmsArticleStorageSchema, parseCmsArticleSource } from './cms-compat.ts';
 
 export const projectRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -30,9 +30,8 @@ export async function resolveUpload(src: string, root = projectRoot) {
 }
 
 export function parseArticle(source: string) {
-  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
-  if (!match) throw new Error('Article requires YAML frontmatter');
-  return { data: articleStorageSchema.parse(parse(match[1])), body: match[2] };
+  const { data, body } = parseCmsArticleSource(source);
+  return { data: cmsArticleStorageSchema.parse(data), body };
 }
 
 // A small allowlist staging step, not an external publishing system. Both this
@@ -49,7 +48,7 @@ export async function stagePublishedMedia(root = projectRoot) {
   const slugs = new Set<string>();
   for (const name of (await readdir(resolve(root, 'src/content/properties'))).sort()) {
     if (!name.endsWith('.json')) continue;
-    const data = propertyStorageSchema.parse(JSON.parse(await readFile(resolve(root, 'src/content/properties', name), 'utf8')));
+    const data = cmsPropertyStorageSchema.parse(JSON.parse(await readFile(resolve(root, 'src/content/properties', name), 'utf8')));
     if (propertyIds.has(data.propertyId)) throw new Error(`Duplicate property ID: ${data.propertyId}`);
     propertyIds.add(data.propertyId);
     for (const image of data.images ?? []) await resolveUpload(image.src, root);

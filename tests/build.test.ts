@@ -3,15 +3,28 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, copyFile, mkdir, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { root, runAstro, outputAudit, publishedImages, hash } from './helpers.ts';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-test('production build, validation failures, publication changes, and actual dist privacy', { timeout: 300_000 }, async (t) => {
+test('production build, validation failures, publication changes, and actual dist privacy', { timeout: 600_000 }, async (t) => {
   const propertyFile = resolve(root, 'src/content/properties/published-property.json');
   const studioFile = resolve(root, 'src/content/properties/published-studio.json');
   const draftFile = resolve(root, 'src/content/properties/draft-property.json');
   const articleFile = resolve(root, 'src/content/neighborhoods/published-guide.md');
+  const hiddenFile = resolve(root, 'src/content/properties/hidden-property.json');
+  const draftArticleFile = resolve(root, 'src/content/neighborhoods/draft-guide.md');
+  const hiddenArticleFile = resolve(root, 'src/content/neighborhoods/hidden-guide.md');
   const originals = new Map<string, string>();
-  for (const file of [propertyFile, studioFile, draftFile, articleFile]) originals.set(file, await readFile(file, 'utf8'));
+  for (const file of [propertyFile, studioFile, draftFile, articleFile, hiddenFile, draftArticleFile, hiddenArticleFile]) originals.set(file, await readFile(file, 'utf8'));
   const property = JSON.parse(originals.get(propertyFile)!);
+  const measurements = ['monthlyRent', 'bedrooms', 'bathrooms', 'squareFeet'] as const;
+  const articleMatch = originals.get(articleFile)!.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/)!;
+  const articleData = parseYaml(articleMatch[1]);
+  const articleWith = (updatedDateState: string | undefined, updatedDate: unknown) => {
+    const data = { ...articleData, updatedDateState, updatedDate };
+    if (updatedDate === undefined) delete data.updatedDate;
+    if (updatedDateState === undefined) delete data.updatedDateState;
+    return `---\n${stringifyYaml(data)}---\n${articleMatch[2]}`;
+  };
   const report: Record<string, unknown> = { purpose: 'Synthetic local POC; no deployment', scenarios: [] };
   const scenarios = report.scenarios as { name: string; passed: boolean; detail?: string }[];
   const scenario = async (name: string, action: () => Promise<void>) => {
@@ -96,6 +109,90 @@ test('production build, validation failures, publication changes, and actual dis
         assert.match(html, /Unavailable/); assert.match(html, /Fictional Maple Flat/);
       } finally { await restore(); }
     });
+
+    await scenario('CMS Unknown values reach both staging and Content Collections as canonical null', async () => {
+      try {
+        const data = { ...property };
+        for (const field of measurements) { delete data[field]; data[`${field}State`] = 'unknown'; }
+        await writeFile(propertyFile, JSON.stringify(data));
+        await writeFile(articleFile, articleWith('unknown', undefined));
+        await build();
+        const audit = await outputAudit();
+        const flat = audit.html.match(/<article data-property-id="fictional-maple-flat"[\s\S]*?<\/article>/)?.[0];
+        assert.ok(flat);
+        for (const expected of ['Contact for pricing', 'Bedrooms not specified', 'Bathrooms not specified', 'Area not specified']) assert.ok(flat.includes(expected), expected);
+        assert.doesNotMatch(audit.html, /<time\b/);
+        assert.doesNotMatch(audit.html, /(?:monthlyRent|bedrooms|bathrooms|squareFeet|updatedDate)State/);
+        report.cmsUnknown = { canonicalNullRendering: true, noInventedDate: true, images: audit.inventory.filter((file) => file.image).map((file) => file.path) };
+      } finally { await restore(); }
+    });
+
+    await scenario('CMS Known zero, decimal bathrooms and a verified date survive the complete build', async () => {
+      try {
+        const data = { ...property, monthlyRent: 0, bedrooms: 0, bathrooms: 1.5, squareFeet: 0 };
+        for (const field of measurements) data[`${field}State`] = 'known';
+        await writeFile(propertyFile, JSON.stringify(data));
+        await writeFile(articleFile, articleWith('known', '2024-02-29'));
+        await build();
+        const { html } = await outputAudit();
+        const flat = html.match(/<article data-property-id="fictional-maple-flat"[\s\S]*?<\/article>/)?.[0];
+        assert.ok(flat);
+        assert.match(flat, /\$0 \/ month/);
+        assert.match(flat, /Studio/);
+        assert.match(flat, /1\.5 bathrooms/);
+        assert.match(flat, /0 sq ft/);
+        assert.match(html, /<time\b[^>]*\bdatetime="2024-02-29"[^>]*>2024-02-29<\/time>/);
+        assert.doesNotMatch(html, /(?:monthlyRent|bedrooms|bathrooms|squareFeet|updatedDate)State/);
+        report.cmsKnown = { zeroRent: true, studioZero: true, decimalBathrooms: true, zeroArea: true, verifiedDate: '2024-02-29' };
+      } finally { await restore(); }
+    });
+
+    await scenario('legacy quoted verified dates work without state fields', async () => {
+      try {
+        await writeFile(articleFile, originals.get(articleFile)!.replace('updatedDate: null', 'updatedDate: "2024-02-29"'));
+        await build();
+        const { html } = await outputAudit();
+        assert.match(html, /<time\b[^>]*\bdatetime="2024-02-29"[^>]*>2024-02-29<\/time>/);
+      } finally { await restore(); }
+    });
+
+    await scenario('CMS Unknown states never publish Draft or Hidden records or their assets', async () => {
+      try {
+        for (const file of [draftFile, hiddenFile]) {
+          const data = JSON.parse(originals.get(file)!);
+          for (const field of measurements) data[`${field}State`] = 'unknown';
+          await writeFile(file, JSON.stringify(data));
+        }
+        for (const file of [draftArticleFile, hiddenArticleFile]) {
+          await writeFile(file, originals.get(file)!.replace('title:', 'updatedDateState: unknown\ntitle:'));
+        }
+        await build();
+        await outputAudit();
+      } finally { await restore(); }
+    });
+
+    for (const field of measurements) {
+      const missing = { ...property }; delete missing[field];
+      await invalidBuild(`CMS Published ${field} missing without Unknown fails candidate`, propertyFile, JSON.stringify(missing), new RegExp(field));
+      await invalidBuild(`CMS ${field} Known without a value fails candidate`, propertyFile, JSON.stringify({ ...missing, [`${field}State`]: 'known' }), new RegExp(`${field}.*Known`));
+      await invalidBuild(`CMS ${field} Unknown conflicts with numeric zero`, propertyFile, JSON.stringify({ ...property, [field]: 0, [`${field}State`]: 'unknown' }), new RegExp(`${field}.*Unknown`));
+    }
+    await invalidBuild('CMS Known rent cannot use legacy null', propertyFile, JSON.stringify({ ...property, monthlyRent: null, monthlyRentState: 'known' }), /monthlyRent.*Known/);
+    await invalidBuild('CMS invalid numeric state fails candidate', propertyFile, JSON.stringify({ ...property, monthlyRentState: 'Unknown' }), /monthlyRentState.*known or unknown/);
+    await invalidBuild('CMS Known rent rejects numeric strings', propertyFile, JSON.stringify({ ...property, monthlyRent: '0', monthlyRentState: 'known' }), /monthlyRent/);
+    await invalidBuild('CMS Known bedrooms reject fractional values', propertyFile, JSON.stringify({ ...property, bedrooms: 0.5, bedroomsState: 'known' }), /bedrooms/);
+    await invalidBuild('CMS Published date missing without Unknown fails candidate', articleFile, articleWith(undefined, undefined), /updatedDate/);
+    await invalidBuild('CMS Known date missing fails candidate', articleFile, articleWith('known', undefined), /updatedDate.*Known/);
+    await invalidBuild('CMS Known date cannot use legacy null', articleFile, articleWith('known', null), /updatedDate.*Known/);
+    await invalidBuild('CMS Unknown date conflicts with a supplied date', articleFile, articleWith('unknown', '2024-02-29'), /updatedDate.*Unknown/);
+    await invalidBuild('CMS Known date rejects an empty string', articleFile, articleWith('known', ''), /updatedDate/);
+    await invalidBuild('CMS Unknown date rejects an empty string', articleFile, articleWith('unknown', ''), /updatedDate.*Unknown/);
+    await invalidBuild('CMS Known date rejects an invalid calendar date', articleFile, articleWith('known', '2026-02-29'), /calendar date/);
+    await invalidBuild('CMS raw unquoted rollover date fails candidate', articleFile, originals.get(articleFile)!.replace('updatedDate: null', 'updatedDate: 2026-02-29\nupdatedDateState: known'), /calendar date/);
+
+    const unknownRent = { ...property, monthlyRentState: 'unknown' }; delete unknownRent.monthlyRent;
+    await invalidBuild('CMS Unknown does not bypass image authorization', propertyFile, JSON.stringify({ ...unknownRent, images: [{ ...property.images[0], usage: undefined }] }), /usage/);
+    await invalidBuild('CMS Unknown does not bypass Markdown security', articleFile, articleWith('unknown', undefined) + '\n[unsafe](javascript:alert(1))\n', /Unsafe Markdown link/);
 
     await invalidBuild('unknown publication state fails build', propertyFile, JSON.stringify({ ...property, publicationStatus: 'invalid' }), /publicationStatus/);
     await invalidBuild('negative rent fails build', propertyFile, JSON.stringify({ ...property, monthlyRent: -1 }), /monthlyRent/);

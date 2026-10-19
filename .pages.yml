@@ -1,4 +1,4 @@
-# Configuration candidate for a synthetic Pages CMS experiment; hosted saving is unverified.
+# Nullable-state configuration experiment; this version still requires hosted Save tests.
 # Read README.md before using this in a disposable public sandbox.
 # Astro schemas, Markdown validation and published-media staging remain authoritative.
 
@@ -12,6 +12,16 @@ media:
     rename: false
 
 components:
+  nullable-state:
+    type: select
+    description: Choose Known and enter the value, or choose Unknown and clear the value. Leave unselected only for an unfinished draft or an existing numeric/date value. A blank Published field needs Unknown.
+    options:
+      values:
+        - name: known
+          label: Known — enter the value
+        - name: unknown
+          label: Unknown — leave the value blank
+
   publication-status:
     type: select
     label: Publication status
@@ -102,30 +112,42 @@ content:
       - name: location
         label: Location
         type: string
+      - name: monthlyRentState
+        label: Is the monthly rent known?
+        component: nullable-state
       - name: monthlyRent
         label: Monthly rent (USD)
         type: number
         options:
           min: 0
-        description: Unknown rent requires JSON null for publication. Blank-to-null saving is unverified; never enter zero to mean unknown.
+        description: Enter the actual rent for Known. For Unknown, clear this value and select Unknown above. Zero means an actual rent of zero.
+      - name: bedroomsState
+        label: Is the bedroom count known?
+        component: nullable-state
       - name: bedrooms
         label: Bedrooms
         type: number
         options:
           min: 0
-        description: Whole numbers only; zero means Studio. Unknown requires null for publication. Astro enforces integral values.
+        description: Enter a whole number for Known; zero means Studio. For Unknown, clear this value and select Unknown above.
+      - name: bathroomsState
+        label: Is the bathroom count known?
+        component: nullable-state
       - name: bathrooms
         label: Bathrooms
         type: number
         options:
           min: 0
-        description: Fractional values such as 1.5 are allowed. Unknown requires null for publication.
+        description: Enter the actual count for Known; fractional values such as 1.5 are valid. For Unknown, clear this value and select Unknown above.
+      - name: squareFeetState
+        label: Is the floor area known?
+        component: nullable-state
       - name: squareFeet
         label: Floor area (square feet)
         type: number
         options:
           min: 0
-        description: Unknown requires null for publication; blank serialization needs sandbox verification.
+        description: Enter the actual area for Known. For Unknown, clear this value and select Unknown above. Never use zero to mean unknown.
       - name: availability
         label: Availability
         type: select
@@ -185,16 +207,19 @@ content:
         label: Summary
         type: text
         description: At least 20 characters before publication.
+      - name: updatedDateState
+        label: Is the verified update date known?
+        component: nullable-state
       - name: updatedDate
         label: Verified update date
         type: date
         # Documented way to suppress the CMS's automatic current-date default.
-        # This is a UI default, NOT a schema-valid content value. See null mismatch.
+        # A UI default only; saved empty strings are rejected by Astro.
         default: ''
         options:
           time: false
           format: yyyy-MM-dd
-        description: Do not invent a date. Publication requires a verified YYYY-MM-DD date or explicit null; empty-date serialization needs sandbox verification.
+        description: For Known, enter a verified YYYY-MM-DD date. For Unknown, clear this date and select Unknown above. Never guess a date.
       - name: sources
         label: Source references
         type: object
