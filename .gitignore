@@ -1,0 +1,25 @@
+# Dependencies and generated artifacts
+node_modules/
+.astro/
+.poc-media/
+dist/
+reports/
+.npm-cache/
+.path-test-*/
+
+# Environment, credentials and local logs
+.env
+.env.*
+.npmrc
+.aws/
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
