@@ -138,6 +138,7 @@ content:
         type: number
         options:
           min: 0
+          step: 0.5
         description: Enter the actual count for Known; fractional values such as 1.5 are valid. For Unknown, clear this value and select Unknown above.
       - name: squareFeetState
         label: Is the floor area known?
