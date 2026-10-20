@@ -17,7 +17,8 @@ coverImage:
     authorization: synthetic
     credit: Content Lab synthetic fixture
     authorizationReference: Generated locally by scripts/generate-images.mjs; no third-party material
-updatedDateState: unknown
+updatedDateState: known
+updatedDate: 2026-10-18
 ---
 ## A fictional walk
 
