@@ -12,7 +12,8 @@ import { cmsPropertyStorageSchema, cmsArticleStorageSchema, parseCmsArticleSourc
 import { parse as parseYaml } from 'yaml';
 
 const property = JSON.parse(await readFile(new URL('../src/content/properties/published-property.json', import.meta.url), 'utf8'));
-const studio = JSON.parse(await readFile(new URL('../src/content/properties/published-studio.json', import.meta.url), 'utf8'));
+// Hosted Save added state markers; canonical tests consume the normalized record.
+const studio = cmsPropertyStorageSchema.parse(JSON.parse(await readFile(new URL('../src/content/properties/published-studio.json', import.meta.url), 'utf8')));
 const article = parseArticle(await readFile(new URL('../src/content/neighborhoods/published-guide.md', import.meta.url), 'utf8'));
 const measurements = ['monthlyRent', 'bedrooms', 'bathrooms', 'squareFeet'] as const;
 
@@ -26,17 +27,19 @@ test('CMS compatibility preserves legacy fixtures without state fields or mutati
 
 for (const field of measurements) {
   const stateKey = `${field}State`;
-  test(`CMS ${field}: legacy and Known values retain zero and positive numbers`, () => {
+  test(`CMS ${field}: legacy, Known and Not Set retain zero and positive numbers`, () => {
     for (const value of [0, 1, 1250, ...(field === 'bedrooms' ? [] : [1.5])]) {
-      for (const state of [undefined, 'known']) {
+      for (const state of [undefined, 'known', 'not-set']) {
         const input = Object.freeze({ ...property, [field]: value, ...(state ? { [stateKey]: state } : {}) });
         const data = cmsPropertyStorageSchema.parse(input);
         assert.equal(propertyReadySchema.parse(data)[field], value);
         assert.equal(Object.hasOwn(data, stateKey), false);
         assert.equal(input[field], value);
+        assert.equal(input[stateKey], state);
       }
     }
     assert.equal(cmsPropertyStorageSchema.parse({ ...property, [field]: null })[field], null);
+    assert.equal(cmsPropertyStorageSchema.parse({ ...property, [field]: null, [stateKey]: 'not-set' })[field], null);
   });
 
   test(`CMS ${field}: only explicit Unknown recovers omitted/null values`, () => {
@@ -59,7 +62,7 @@ for (const field of measurements) {
       if (!result.success) assert.deepEqual(result.error.issues[0].path, [field]);
     }
     for (const value of ['', ' ', '0', 'null', -1, NaN, Infinity, false, {}, [], ...(field === 'bedrooms' ? [0.5] : [])]) {
-      for (const state of [undefined, 'known']) {
+      for (const state of [undefined, 'known', 'not-set']) {
         assert.equal(cmsPropertyStorageSchema.safeParse({ ...property, [field]: value, ...(state ? { [stateKey]: state } : {}) }).success, false);
       }
     }
@@ -68,38 +71,51 @@ for (const field of measurements) {
     }
   });
 
-  test(`CMS ${field}: unmarked missing values stay incomplete in every publication state`, () => {
+  test(`CMS ${field}: unmarked and Not Set missing values stay incomplete in every publication state`, () => {
     for (const publicationStatus of ['draft', 'hidden', 'published']) {
-      const input: Record<string, unknown> = { ...property, publicationStatus };
-      delete input[field];
-      const data = cmsPropertyStorageSchema.parse(input);
-      assert.equal(data.publicationStatus, publicationStatus);
-      assert.equal(Object.hasOwn(data, field), false, 'Missing must not silently become null');
-      assert.equal(propertyReadySchema.safeParse(data).success, false);
-      assert.equal(cmsPropertyStorageSchema.safeParse({ ...input, [stateKey]: 'known' }).success, false);
-      const unknown = cmsPropertyStorageSchema.parse({ ...input, [stateKey]: 'unknown' });
-      assert.equal(unknown[field], null);
-      assert.equal(unknown.publicationStatus, publicationStatus);
-      assert.equal(propertyReadySchema.safeParse(unknown).success, publicationStatus === 'published');
+      for (const state of [undefined, 'not-set']) {
+        const input: Record<string, unknown> = { ...property, publicationStatus, ...(state ? { [stateKey]: state } : {}) };
+        delete input[field];
+        Object.freeze(input);
+        const data = cmsPropertyStorageSchema.parse(input);
+        assert.equal(data.publicationStatus, publicationStatus);
+        assert.equal(Object.hasOwn(data, field), false, 'Missing must not silently become null');
+        assert.equal(Object.hasOwn(data, stateKey), false);
+        assert.equal(Object.hasOwn(input, field), false);
+        assert.equal(propertyReadySchema.safeParse(data).success, false);
+        assert.equal(cmsPropertyStorageSchema.safeParse({ ...input, [stateKey]: 'known' }).success, false);
+        const unknown = cmsPropertyStorageSchema.parse({ ...input, [stateKey]: 'unknown' });
+        assert.equal(unknown[field], null);
+        assert.equal(unknown.publicationStatus, publicationStatus);
+        assert.equal(propertyReadySchema.safeParse(unknown).success, publicationStatus === 'published');
+      }
     }
   });
 }
 
 test('CMS dates preserve verified dates and legacy nulls without inventing dates', () => {
   for (const updatedDate of ['2024-02-29', '2026-10-16', '2000-02-29']) {
-    for (const state of [undefined, 'known']) {
+    for (const state of [undefined, 'known', 'not-set']) {
       const data = cmsArticleStorageSchema.parse({ ...article.data, updatedDate, ...(state ? { updatedDateState: state } : {}) });
       assert.equal(articleReadySchema.parse(data).updatedDate, updatedDate);
       assert.equal(Object.hasOwn(data, 'updatedDateState'), false);
     }
   }
   assert.equal(cmsArticleStorageSchema.parse(article.data).updatedDate, null);
+  const notSetNull = cmsArticleStorageSchema.parse({ ...article.data, updatedDate: null, updatedDateState: 'not-set' });
+  assert.equal(notSetNull.updatedDate, null);
+  assert.equal(Object.hasOwn(notSetNull, 'updatedDateState'), false);
   for (const publicationStatus of ['draft', 'hidden', 'published']) {
     const missing: Record<string, unknown> = { ...article.data, publicationStatus };
     delete missing.updatedDate;
     const data = cmsArticleStorageSchema.parse(missing);
     assert.equal(Object.hasOwn(data, 'updatedDate'), false);
     assert.equal(articleReadySchema.safeParse(data).success, false);
+    const notSet = cmsArticleStorageSchema.parse({ ...missing, updatedDateState: 'not-set' });
+    assert.equal(Object.hasOwn(notSet, 'updatedDate'), false);
+    assert.equal(Object.hasOwn(notSet, 'updatedDateState'), false);
+    assert.equal(notSet.publicationStatus, publicationStatus);
+    assert.equal(articleReadySchema.safeParse(notSet).success, false);
     for (const value of [undefined, null]) {
       const input = { ...missing, ...(value === null ? { updatedDate: null } : {}) };
       assert.equal(cmsArticleStorageSchema.safeParse({ ...input, updatedDateState: 'known' }).success, false);
@@ -113,7 +129,7 @@ test('CMS dates preserve verified dates and legacy nulls without inventing dates
 
 test('CMS dates reject empty/invalid values and Unknown conflicts, including empty strings', () => {
   for (const updatedDate of ['', ' ', 'null', '2026-02-29', '2026-04-31', '2026-1-01', '2026-01-01T00:00:00Z', 0, false, {}, []]) {
-    for (const state of [undefined, 'known', 'unknown']) {
+    for (const state of [undefined, 'known', 'unknown', 'not-set']) {
       assert.equal(cmsArticleStorageSchema.safeParse({ ...article.data, updatedDate, ...(state ? { updatedDateState: state } : {}) }).success, false);
     }
   }
@@ -134,11 +150,13 @@ test('YAML staging parser uses the same CMS adapter as Content Collections', () 
 
 test('shared raw article parser preserves quoted/unquoted dates and rejects rollover without Date coercion', () => {
   for (const literal of ['2024-02-29', '"2024-02-29"']) {
-    const source = `---\nslug: verified-date\nupdatedDateState: known\nupdatedDate: ${literal}\n---\nBody`;
-    const raw = parseCmsArticleSource(source);
-    assert.equal(raw.data.updatedDate, '2024-02-29');
-    assert.equal(raw.body, 'Body');
-    assert.equal(parseArticle(source).data.updatedDate, '2024-02-29');
+    for (const state of ['known', 'not-set']) {
+      const source = `---\nslug: verified-date\nupdatedDateState: ${state}\nupdatedDate: ${literal}\n---\nBody`;
+      const raw = parseCmsArticleSource(source);
+      assert.equal(raw.data.updatedDate, '2024-02-29');
+      assert.equal(raw.body, 'Body');
+      assert.equal(parseArticle(source).data.updatedDate, '2024-02-29');
+    }
   }
   for (const literal of ['2026-02-29', '2026-04-31', '"2026-02-29"', '2024-02-29T00:00:00Z', '""']) {
     assert.throws(() => parseArticle(`---\nslug: invalid-date\nupdatedDate: ${literal}\n---\nBody`), /calendar date|Invalid string|Invalid input/);
@@ -163,7 +181,7 @@ test('CMS states do not bypass image metadata, required display fields, or publi
 test('CMS configuration has explicit choices without invented intent or numeric/date defaults', async () => {
   const config = parseYaml(await readFile(new URL('../.pages.yml', import.meta.url), 'utf8'));
   const stateComponent = config.components['nullable-state'];
-  assert.deepEqual(stateComponent.options.values.map((value: { name: string }) => value.name), ['known', 'unknown']);
+  assert.deepEqual(stateComponent.options.values.map((value: { name: string }) => value.name), ['not-set', 'known', 'unknown']);
   assert.equal(Object.hasOwn(stateComponent, 'default'), false);
   assert.equal(stateComponent.required, undefined);
   for (const [collectionName, fields] of [['properties', measurements], ['neighborhoods', ['updatedDate']]] as const) {
@@ -202,7 +220,7 @@ test('numeric nulls remain null and empty strings cannot become zero', () => {
       assert.equal(propertyStorageSchema.safeParse({ ...property, [field]: invalid }).success, false, `${field}: ${invalid}`);
     }
   }
-  assert.equal(propertyReadySchema.parse(studio).monthlyRent, null);
+  assert.equal(propertyReadySchema.parse({ ...studio, monthlyRent: null }).monthlyRent, null);
 });
 test('bedrooms must be integral; zero rent and measurements are accepted without coercion', () => {
   assert.equal(propertyStorageSchema.safeParse({ ...property, bedrooms: 0.5 }).success, false);

@@ -7,7 +7,7 @@ contains no real property information and is not a production website.
 This standalone Astro project tests Pages CMS JSON and Markdown editing. The first
 hosted Save omitted nullable number fields; its comparison evidence remains at
 [sandbox commit 401d70b](https://github.com/hfchen1006/waterview-pages-cms-sandbox-20261019/commit/401d70beb6b7a371896fb1e2540cacfd45897314).
-This local version adds explicit Known / Unknown controls and a build-time adapter.
+This local version adds explicit Not Set / Known / Unknown controls and a build-time adapter.
 The updated configuration still requires hosted Save tests. No CMS server,
 deployment workflow or hosting adapter is included. Saving must not deploy to
 production; candidate validation and release approval are separate steps.
@@ -37,8 +37,12 @@ node --input-type=module -e "import { outputAudit } from './tests/helpers.ts'; c
 `npm test` includes schema, Markdown security and production-artifact regressions.
 Integration tests temporarily change synthetic fixtures, restore them in `finally`,
 and write local reports. Do not edit content or run another build concurrently.
-Forced termination can prevent restoration. The suite expects the supplied
-baseline fixtures; review CMS-authored edits separately before running it.
+Forced termination can prevent restoration. The current hosted fixtures include
+studio rent of zero, an Unknown floor area, and an Unknown guide date. Tests
+normalize those state markers before canonical checks, and date scenarios replace
+parsed fields rather than relying on the old literal `updatedDate: null` line.
+The empty-body scenario uses captured frontmatter so it works with LF or CRLF.
+Review further CMS-authored edits separately before running the suite.
 `reports/test-results.json` records the candidate scenarios and final artifact
 inventory. The standalone audit checks the final fresh build, including image
 hashes and decoded pixels, unpublished markers, and internal-file exclusions.
@@ -70,7 +74,7 @@ fixtures, when needed, with `node scripts/generate-images.mjs`.
 The CMS configuration disables content rename/delete and inline media controls,
 but those UI settings are not repository permissions.
 
-## Known / Unknown editing
+## Not Set / Known / Unknown editing
 
 Each measurement has an adjacent question: is the rent, bedroom count, bathroom
 count, or floor area known? The verified update date has the same choice.
@@ -78,8 +82,12 @@ count, or floor area known? The verified update date has the same choice.
 - Choose **Known** and enter the actual value.
 - Choose **Unknown** and clear its value. Clearing a value alone does not declare
   unknown intent and will fail a Published candidate.
-- Leave the choice unselected while information is unfinished in Draft or Hidden
-  content. Existing explicit numbers and nulls need no new state flags locally.
+- Choose **Not Set** to return from Known or Unknown to a neutral state. It removes
+  only the CMS state marker during validation: any saved valid number (including
+  zero), date, or explicit null is preserved. An omitted value stays omitted.
+  It does not clear a saved value or create zero, null, or today's date.
+- A missing value with Not Set remains incomplete in Draft or Hidden content and
+  fails Published readiness. An unselected choice has the same local behavior.
 - Zero rent means actual zero rent. Zero bedrooms means Studio. Unknown bedrooms
   means an unknown bedroom count. Decimal bathrooms remain valid.
 - Enter a verified calendar date only. The date control retains `default: ''`;
@@ -92,7 +100,9 @@ choice with no value is inconsistent and fails validation even in Draft/Hidden.
 
 When editing an existing null through hosted Pages CMS, select Unknown before
 saving: the CMS may omit the original null. The local adapter never rewrites the
-authored files and cannot make the hosted CMS retain raw nulls.
+authored files and cannot make the hosted CMS retain raw nulls. Not Set cannot
+recover a value that the hosted editor has already omitted. Verify raw Save/reopen
+results before relying on this transition in the hosted editor.
 
 For example, a CMS-authored property can contain:
 
@@ -122,13 +132,15 @@ conversion without accepting Date objects or hiding an invalid calendar date.
 
 The adapter only recognizes `monthlyRentState`, `bedroomsState`, `bathroomsState`,
 `squareFeetState`, and `updatedDateState`, paired with their corresponding values.
-State strings must be exactly `known` or `unknown` when supplied.
+State strings must be exactly `not-set`, `known` or `unknown` when supplied.
 
 | State | Supplied value | Result |
 | --- | --- | --- |
 | Omitted | Valid number/date | Preserve the legacy value |
 | Omitted | Explicit null | Preserve legacy null |
 | Omitted | Value omitted | Remain absent; Published readiness fails |
+| `not-set` | Valid number/date or explicit null | Remove only the marker; preserve the value |
+| `not-set` | Value omitted | Remove only the marker; remain absent; Published readiness fails |
 | `unknown` | Value omitted or null | Canonical null |
 | `unknown` | Any non-null value, including zero or empty string | Fail as conflicting input |
 | `known` | Valid non-null value | Preserve the value |
@@ -141,7 +153,7 @@ is selected. No numeric coercion, fallback date, image repair, or general
 missing-to-null conversion is performed.
 
 An inconsistent edit reports an error such as: `monthlyRent is marked Unknown
-but still contains a value. Clear the value or choose Known.` Missing unmarked
+but still contains a value. Clear the value or choose Known.` Missing unmarked or Not Set
 Published values still fail the canonical readiness schema. Failed candidate
 builds remove the previous local `dist` first, so stale successful output cannot
 be mistaken for the failed candidate. Always check the build exit code.
@@ -153,9 +165,8 @@ review, use only `hfchen1006/waterview-pages-cms-sandbox-20261019`, branch
 `cms-experiment`; retain commit `401d70b` and its parent as comparison evidence.
 Do not update `main` or the real website repository for this experiment.
 
-1. Review the seven changed/new source files: `.pages.yml`, `README.md`,
-   `src/content.config.ts`, `src/lib/content/cms-compat.ts`,
-   `src/lib/content/stage-media.ts`, `tests/schemas.test.ts`, and
+1. Review the five files for this Not Set update: `.pages.yml`, `README.md`,
+   `src/lib/content/cms-compat.ts`, `tests/schemas.test.ts`, and
    `tests/build.test.ts`. Run all local checks above before preparing an update.
 2. Inspect the current sandbox branch and diff before a separately approved
    source-only update. Exclude generated files, dependencies, reports and local
@@ -163,9 +174,11 @@ Do not update `main` or the real website repository for this experiment.
 3. Confirm the experiment branch has no automatic production-deployment path.
    This local implementation does not configure or prove an external release gate.
 4. In new disposable synthetic entries, test each number's null/zero/positive
-   value, clearing and re-entry, Known/Unknown transitions, unselected states,
+   value, clearing and re-entry, Known/Unknown-to-Not-Set transitions, unselected states,
    decimal bathrooms, and repeated Save/reopen. Check exact raw state strings and
    numeric types. Unknown must save its state while the blank value may disappear.
+   Not Set must save as `not-set` without changing any value the editor retains;
+   check zero, explicit null, omitted values, and verified dates after Save/reopen.
 5. Test missing/null/cleared/verified dates and repeated Save/reopen without an
    invented date. Test an optional cover removed completely, incomplete image
    metadata, and Draft/Hidden exclusions. Merge-mode object deletion remains an

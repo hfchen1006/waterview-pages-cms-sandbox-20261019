@@ -26,8 +26,8 @@ function normalizeNullableFields(input: unknown, fields: readonly string[], ctx:
     const state = data[stateKey];
     if (state === undefined) continue; // Legacy numbers/nulls and incomplete drafts keep their existing semantics.
 
-    if (state !== 'known' && state !== 'unknown') {
-      ctx.addIssue({ code: 'custom', path: [stateKey], message: `${stateKey} must be known or unknown; omit it for legacy content.` });
+    if (state !== 'not-set' && state !== 'known' && state !== 'unknown') {
+      ctx.addIssue({ code: 'custom', path: [stateKey], message: `${stateKey} must be not-set, known or unknown; omit it for legacy content.` });
       invalid = true;
     } else if (state === 'known' && (data[field] === undefined || data[field] === null)) {
       ctx.addIssue({ code: 'custom', path: [field], message: `${field} is marked Known but has no value. Enter a valid value or choose Unknown.` });
@@ -40,6 +40,7 @@ function normalizeNullableFields(input: unknown, fields: readonly string[], ctx:
         data[field] = null;
       }
     }
+    // Not Set removes only the marker: preserve values, explicit nulls and absence.
     delete data[stateKey];
   }
   return invalid ? z.NEVER : data;

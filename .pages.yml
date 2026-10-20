@@ -14,9 +14,11 @@ media:
 components:
   nullable-state:
     type: select
-    description: Choose Known and enter the value, or choose Unknown and clear the value. Leave unselected only for an unfinished draft or an existing numeric/date value. A blank Published field needs Unknown.
+    description: Choose Known and enter the value, or choose Unknown and clear the value. Choose Not Set to remove the state choice while keeping any saved value. A blank Published field needs Unknown.
     options:
       values:
+        - name: not-set
+          label: Not Set
         - name: known
           label: Known — enter the value
         - name: unknown
