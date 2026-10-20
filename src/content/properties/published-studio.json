@@ -18,7 +18,7 @@
       }
     }
   ],
-  "monthlyRentState": "not-set",
+  "monthlyRentState": "known",
   "squareFeetState": "unknown",
   "monthlyRent": 0,
   "bathroomsState": "known"
