@@ -4,7 +4,7 @@
   "title": "Fictional Pixel Studio",
   "location": "Imaginary Quarter, Example City",
   "bedrooms": 0,
-  "bathrooms": 1,
+  "bathrooms": 1.5,
   "availability": "coming-soon",
   "description": "CMS sandbox save test.",
   "images": [
@@ -20,5 +20,6 @@
   ],
   "monthlyRentState": "known",
   "squareFeetState": "unknown",
-  "monthlyRent": 0
+  "monthlyRent": 0,
+  "bathroomsState": "known"
 }
