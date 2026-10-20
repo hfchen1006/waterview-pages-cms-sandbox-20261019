@@ -3,8 +3,8 @@ slug: fictional-lantern-quarter
 publicationStatus: published
 title: Fictional Lantern Quarter Guide
 area: Imaginary Lantern Quarter
-summary: An entirely invented neighborhood guide for local Markdown and citation testing.
-updatedDate: null
+summary: An entirely invented neighborhood guide for local Markdown and citation
+  testing.
 sources:
   - title: Fictional planning reference (test citation)
     url: https://example.invalid/planning-reference
@@ -17,6 +17,7 @@ coverImage:
     authorization: synthetic
     credit: Content Lab synthetic fixture
     authorizationReference: Generated locally by scripts/generate-images.mjs; no third-party material
+updatedDateState: unknown
 ---
 ## A fictional walk
 
