@@ -19,12 +19,20 @@ test('production build, validation failures, publication changes, and actual dis
   const measurements = ['monthlyRent', 'bedrooms', 'bathrooms', 'squareFeet'] as const;
   const articleMatch = originals.get(articleFile)!.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/)!;
   const articleData = parseYaml(articleMatch[1]);
+  // Keep legacy-object coverage explicit after the stored fixtures are migrated.
+  const legacyCoverImage = Array.isArray(articleData.coverImage) ? articleData.coverImage[0] : articleData.coverImage;
   const articleWith = (updatedDateState: string | undefined, updatedDate: unknown) => {
     const data = { ...articleData, updatedDateState, updatedDate };
     if (updatedDate === undefined) delete data.updatedDate;
     if (updatedDateState === undefined) delete data.updatedDateState;
     return `---\n${stringifyYaml(data)}---\n${articleMatch[2]}`;
   };
+  const articleWithCover = (coverImage: unknown) => {
+    const data = { ...articleData, coverImage };
+    if (coverImage === undefined) delete data.coverImage;
+    return `---\n${stringifyYaml(data)}---\n${articleMatch[2]}`;
+  };
+  let baselineHtml = '';
   const report: Record<string, unknown> = { purpose: 'Synthetic local POC; no deployment', scenarios: [] };
   const scenarios = report.scenarios as { name: string; passed: boolean; detail?: string }[];
   const scenario = async (name: string, action: () => Promise<void>) => {
@@ -61,6 +69,7 @@ test('production build, validation failures, publication changes, and actual dis
     await scenario('fresh production build and baseline dist audit', async () => {
       await build();
       const audit = await outputAudit();
+      baselineHtml = audit.html;
       report.baseline = { ...audit, html: undefined };
       assert.match(audit.html, /Fictional Maple Flat/);
       assert.match(audit.html, /Fictional Pixel Studio/);
@@ -109,6 +118,73 @@ test('production build, validation failures, publication changes, and actual dis
         assert.match(html, /Unavailable/); assert.match(html, /Fictional Maple Flat/);
       } finally { await restore(); }
     });
+
+    await scenario('CMS one-item cover list produces the same HTML and assets as the legacy object', async () => {
+      try {
+        await writeFile(articleFile, articleWithCover(legacyCoverImage));
+        await build();
+        const legacy = await outputAudit();
+        assert.equal(legacy.html, baselineHtml);
+        await writeFile(articleFile, articleWithCover([legacyCoverImage]));
+        await build();
+        const audit = await outputAudit();
+        assert.equal(audit.html, legacy.html, 'Body, citations, dates, status and image rendering stay identical');
+        assert.deepEqual(audit.inventory, legacy.inventory);
+        report.coverList = { sameLegacyHtml: true, inventory: audit.inventory };
+      } finally { await restore(); }
+    });
+
+    for (const coverImage of [[], undefined]) {
+      await scenario(`CMS ${coverImage === undefined ? 'omitted' : 'empty-list'} cover removes otherwise unused originals and transforms`, async () => {
+        try {
+          await build();
+          await outputAudit(); // The old cover assets exist before removal.
+          await writeFile(articleFile, articleWithCover(coverImage));
+          await build();
+          const audit = await outputAudit(['published-property', 'published-studio'], ['published-guide']);
+          const guideWithoutFigure = (html: string) => html.match(/<article id="fictional-lantern-quarter"[\s\S]*?<\/article>/)![0]
+            .replace(/<figure\b[\s\S]*?<\/figure>/g, '').replace(/\s+/g, ' ');
+          assert.equal(guideWithoutFigure(audit.html), guideWithoutFigure(baselineHtml));
+          assert.equal(audit.inventory.filter(file => file.image).length, 4);
+          report[`coverRemoved:${coverImage === undefined ? 'omitted' : 'empty-list'}`] = { inventory: audit.inventory, otherArticleContentUnchanged: true };
+        } finally { await restore(); }
+      });
+    }
+
+    await scenario('removed article cover remains staged when another Published record still uses it', async () => {
+      try {
+        await writeFile(articleFile, articleWithCover([]));
+        await writeFile(propertyFile, JSON.stringify({ ...property, images: [...property.images, legacyCoverImage] }));
+        await build();
+        await outputAudit();
+      } finally { await restore(); }
+    });
+
+    await scenario('Draft and Hidden cover lists do not publish their text or image bytes', async () => {
+      try {
+        for (const file of [draftArticleFile, hiddenArticleFile]) {
+          const source = originals.get(file)!;
+          const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/)!;
+          const data = parseYaml(match[1]);
+          if (!Array.isArray(data.coverImage)) data.coverImage = [data.coverImage];
+          await writeFile(file, `---\n${stringifyYaml(data)}---\n${match[2]}`);
+        }
+        await build();
+        await outputAudit();
+      } finally { await restore(); }
+    });
+
+    for (const [name, coverImage, message] of [
+      ['multiple covers', [legacyCoverImage, legacyCoverImage], /coverImage/],
+      ['missing image path', [{ ...legacyCoverImage, src: undefined }], /coverImage/],
+      ['missing alt text', [{ ...legacyCoverImage, alt: '' }], /alt/],
+      ['missing authorization', [{ ...legacyCoverImage, usage: undefined }], /usage/],
+      ['invalid image path', [{ ...legacyCoverImage, src: 'https://example.invalid/cover.png' }], /src/],
+      ['missing local image', [{ ...legacyCoverImage, src: 'src/assets/uploads/missing.png' }], /missing\.png/],
+    ] as const) {
+      await invalidBuild(`CMS cover list rejects ${name}`, articleFile, articleWithCover(coverImage), message);
+    }
+    await invalidBuild('empty cover list cannot bypass Markdown security', articleFile, articleWithCover([]) + '\n[unsafe](javascript:alert(1))\n', /Unsafe Markdown link/);
 
     for (const state of ['unknown', 'not-set']) {
       await scenario(`CMS ${state}: Unknown omissions normalize to null; Not Set preserves explicit null`, async () => {

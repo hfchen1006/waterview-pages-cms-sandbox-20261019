@@ -74,6 +74,113 @@ fixtures, when needed, with `node scripts/generate-images.mjs`.
 The CMS configuration disables content rename/delete and inline media controls,
 but those UI settings are not repository permissions.
 
+## Optional Cover Image list prototype
+
+This local prototype changes only the guide editor's `coverImage` field to a
+`controlled-image` object list with `list: { min: 0, max: 1 }`. The existing path,
+alt text and usage requirements still apply to every added item. George should
+use **Remove item** on the entire cover entry, then Save; the PNG picker trash
+icon removes only the file and leaves an invalid partial entry. The list may
+have no entries, including for Published articles. Property image lists are unchanged.
+Pages CMS documents the list bounds in its [list configuration](https://pagescms.org/docs/configuration/content/list/).
+
+The application still uses one optional canonical object. Only the article CMS
+compatibility boundary accepts the new envelope, shared by Content Collections
+and media staging:
+
+| Raw `coverImage` | Validated application value |
+| --- | --- |
+| Existing complete object | Same canonical object |
+| One-element array containing a complete image | Unwrapped canonical object |
+| Empty array `[]` | Absent optional cover |
+| Omitted field | Absent optional cover |
+| More than one item | Reject; never select the first item silently |
+| Partial object/item, invalid path, missing authorization, null or other malformed input | Reject |
+
+No canonical schema, rendering code, body, date, source citation, or publication
+status is migrated by the adapter. It never rewrites authored files. Removing an
+unused cover removes its original PNG and WebP from a fresh candidate artifact;
+an asset still referenced by another Published entry remains. Source uploads stay
+in the repository. Previously deployed/CDN copies are outside this prototype.
+
+### Merge behavior and legacy data migration
+
+**Enable the list configuration and migrated content as one coordinated change.**
+The application preserves their objects, but the inspected Pages CMS initializer
+maps a non-array value in a list field to `[]`. Merely opening and saving an old
+object through the new editor could therefore delete a valid cover. Backend
+compatibility alone cannot protect against that upstream loss.
+
+`settings.content.merge: true` remains enabled. The [settings documentation](https://pagescms.org/docs/configuration/settings/)
+describes preservation of fields omitted from editor submissions. In inspected
+upstream revision `6f4e860a35d934406580287e7042e5e111e207a1`, the save route replaces
+an existing array/object when the submitted value is an array, then sanitizes
+empty arrays out of the final saved file. Thus an explicit `coverImage: []` must
+reach the merge to remove an old cover; simply omitting the submitted key can
+restore the previous metadata. Reopening an absent list initializes `[]`.
+This source snapshot does not establish which revision the hosted app runs.
+See [initialization and sanitization](https://github.com/pages-cms/pages-cms/blob/6f4e860a35d934406580287e7042e5e111e207a1/lib/schema.ts)
+and the [save merge route](https://github.com/pages-cms/pages-cms/blob/6f4e860a35d934406580287e7042e5e111e207a1/app/api/%5Bowner%5D/%5Brepo%5D/%5Bbranch%5D/files/%5Bpath%5D/route.ts).
+
+This local eight-file candidate includes the three cover migrations from starting
+SHA `0b98ffaab63c3a5c4723099edfc3c63bb5e777b6`. No hosted records have been opened
+or saved. Before a separately reviewed sandbox update, pause editor writes and
+deliver the list configuration, adapter and migrated content together **before
+anyone opens the new list editor**. The migrated files are:
+
+- `src/content/neighborhoods/published-guide.md`
+- `src/content/neighborhoods/draft-guide.md`
+- `src/content/neighborhoods/hidden-guide.md`
+
+Each original complete object was validated before wrapping. All five image
+metadata values, other raw article metadata and canonical parsed data match the
+pre-migration snapshot. Markdown body bytes are unchanged. The collection has
+three one-item covers and no remaining legacy object covers. Unit tests guard
+those stored envelopes and the canonical round-trip; integration tests explicitly
+rebuild the legacy object as well as the list representation. Local comparison
+reports record the before/after values and body hashes. A full artifact inventory
+comparison checks that the fresh build matches the pre-migration baseline.
+
+The only content edit wraps the whole existing `coverImage` object in one array
+element, preserving every nested value, including `usage`. The published cover
+now has exactly this structure, with its original values:
+
+```yaml
+coverImage:
+  - src: src/assets/uploads/published-guide.png
+    alt: Synthetic bands of color illustrating the imaginary Lantern Quarter
+    usage:
+      authorization: synthetic
+      credit: Content Lab synthetic fixture
+      authorizationReference: Generated locally by scripts/generate-images.mjs; no third-party material
+```
+
+Leave an absent cover absent; do not migrate invalid/partial objects by dropping
+them or inventing metadata. Review those records individually. Keep all other
+frontmatter and the Markdown body unchanged. Validate the objects before wrapping,
+compare normalized records and body bytes before/after, and run the full build and
+media audit. Deliver the compatible adapter, reviewed content wrapping and list
+configuration together while editing is paused; the old object editor must not
+save migrated arrays. Keep a reviewed backup. For rollback of this local candidate
+with no subsequent edits, check the combined patch in reverse with
+`git apply -R --check reports/cover-migration-combined.patch`, then apply that
+reverse patch to restore all eight files together. After later edits, review a
+coordinated rollback: restore the old editor, unwrap each valid one-item array
+without changing its metadata, and keep absent covers absent. Do not restore an
+old snapshot over new article content. Re-run the canonical/body comparisons,
+candidate build and media audit before reopening editing. Never leave migrated
+arrays paired with the old object editor.
+
+Hosted verification is still required on disposable synthetic entries: save and
+reopen an intact migrated cover without changes, remove the entire item, inspect
+the raw diff, reopen and save again, and add a replacement. Confirm the empty
+array reaches the merge, old `src`/`alt`/`usage` do not reappear, and unrelated
+fields stay unchanged. The CMS may sanitize `[]` to an omitted saved key; the
+important gate is that the old cover is gone after repeated Save/reopen. Test
+blank child fields, authorization errors, max-one enforcement and Draft/Hidden
+exclusions as well. Local tests prove application normalization and artifact
+behavior, not hosted serialization or the editor's button layout.
+
 ## Not Set / Known / Unknown editing
 
 Each measurement has an adjacent question: is the rent, bedroom count, bathroom
@@ -165,9 +272,10 @@ review, use only `hfchen1006/waterview-pages-cms-sandbox-20261019`, branch
 `cms-experiment`; retain commit `401d70b` and its parent as comparison evidence.
 Do not update `main` or the real website repository for this experiment.
 
-1. Review the five files for this Not Set update: `.pages.yml`, `README.md`,
+1. Review the eight files for this coordinated cover migration: `.pages.yml`, `README.md`,
    `src/lib/content/cms-compat.ts`, `tests/schemas.test.ts`, and
-   `tests/build.test.ts`. Run all local checks above before preparing an update.
+   `tests/build.test.ts`, and the three guide files listed above. Run all local
+   checks above before preparing an update.
 2. Inspect the current sandbox branch and diff before a separately approved
    source-only update. Exclude generated files, dependencies, reports and local
    environments. Do not force-push or rewrite the comparison evidence.
@@ -181,8 +289,8 @@ Do not update `main` or the real website repository for this experiment.
    check zero, explicit null, omitted values, and verified dates after Save/reopen.
 5. Test missing/null/cleared/verified dates and repeated Save/reopen without an
    invented date. Test an optional cover removed completely, incomplete image
-   metadata, and Draft/Hidden exclusions. Merge-mode object deletion remains an
-   unresolved hosted behavior; this adapter does not repair or bypass it.
+   metadata, and Draft/Hidden exclusions. Follow the cover migration and merge
+   checks above before enabling the new list editor on any existing record.
 6. Inspect raw committed files after each Save and validate a separate local
    candidate copy. Confirm contradictory/missing Published inputs fail and the
    public artifact contains only approved Published text and assets. Approval to

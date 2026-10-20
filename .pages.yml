@@ -1,4 +1,4 @@
-# Nullable-state configuration experiment; this version still requires hosted Save tests.
+# CMS compatibility prototype; migrate legacy cover objects before hosted list editing.
 # Read README.md before using this in a disposable public sandbox.
 # Astro schemas, Markdown validation and published-media staging remain authoritative.
 
@@ -241,6 +241,10 @@ content:
       - name: coverImage
         label: Optional cover image
         component: controlled-image
+        list:
+          min: 0
+          max: 1
+        description: Add one complete cover image, or use Remove item on the whole entry to remove the cover. Deleting only the PNG leaves an incomplete entry. Existing object covers must be migrated before using this editor.
       - name: body
         label: Guide article
         type: rich-text
@@ -253,4 +257,6 @@ content:
 settings:
   hide: true
   content:
+    # Empty cover lists must reach the merge as [] to replace old metadata.
+    # Verify hosted Save/reopen before relying on removal; see README.md.
     merge: true

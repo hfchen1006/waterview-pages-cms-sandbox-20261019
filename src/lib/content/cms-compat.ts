@@ -1,6 +1,6 @@
 import { z } from 'astro/zod';
 import { parse as parseYaml } from 'yaml';
-import { propertyStorageSchema, articleStorageSchema } from './schemas.ts';
+import { propertyStorageSchema, articleStorageSchema, imageSchema } from './schemas.ts';
 
 // CMS-only intent fields are consumed before the unchanged canonical schemas.
 // Only explicit unknown intent can recover a value omitted by Pages CMS.
@@ -46,13 +46,36 @@ function normalizeNullableFields(input: unknown, fields: readonly string[], ctx:
   return invalid ? z.NEVER : data;
 }
 
-// Both ingestion paths use these exact schemas. No coercion, numeric/date defaults,
-// publication-status changes, or normalization of images/Markdown is permitted here.
+const coverListSchema = z.array(imageSchema).max(1);
+
+function normalizeArticle(input: unknown, ctx: z.RefinementCtx): unknown {
+  const normalized = normalizeNullableFields(input, articleFields, ctx);
+  if (normalized === null || typeof normalized !== 'object' || Array.isArray(normalized)) return normalized;
+
+  const data = normalized as Record<string, unknown>;
+  if (!Array.isArray(data.coverImage)) return data; // Preserve legacy objects and absence.
+
+  // Validate every supplied item before unwrapping; even [undefined] must fail.
+  const cover = coverListSchema.safeParse(data.coverImage);
+  if (!cover.success) {
+    for (const issue of cover.error.issues) {
+      ctx.addIssue({ ...issue, path: ['coverImage', ...issue.path] });
+    }
+    return z.NEVER;
+  }
+  if (cover.data.length === 0) delete data.coverImage;
+  else data.coverImage = cover.data[0];
+  return data;
+}
+
+// Both ingestion paths use these exact schemas. Only the cover list envelope is
+// normalized; canonical image validation and Markdown remain unchanged. No numeric/
+// date coercion or defaults, or publication-status changes, are permitted here.
 export const cmsPropertyStorageSchema = z.preprocess(
   (input, ctx) => normalizeNullableFields(input, propertyFields, ctx),
   propertyStorageSchema,
 );
 export const cmsArticleStorageSchema = z.preprocess(
-  (input, ctx) => normalizeNullableFields(input, articleFields, ctx),
+  (input, ctx) => normalizeArticle(input, ctx),
   articleStorageSchema,
 );

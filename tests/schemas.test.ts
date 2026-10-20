@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, mkdir, copyFile, symlink, rm } from 'node:fs/promises';
+import { readFile, readdir, mkdtemp, mkdir, copyFile, symlink, rm } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import {
   propertyStorageSchema, propertyReadySchema, articleStorageSchema, articleReadySchema,
@@ -23,6 +23,116 @@ test('CMS compatibility preserves legacy fixtures without state fields or mutati
     assert.deepEqual(cmsPropertyStorageSchema.parse(input), propertyStorageSchema.parse(fixture));
   }
   assert.deepEqual(cmsArticleStorageSchema.parse(Object.freeze({ ...article.data })), article.data);
+});
+
+test('CMS cover objects and one-item lists preserve the canonical image and all article metadata', () => {
+  const image = Object.freeze({ ...article.data.coverImage, usage: Object.freeze({ ...article.data.coverImage!.usage }) });
+  for (const publicationStatus of ['draft', 'hidden', 'published']) {
+    for (const coverImage of [image, Object.freeze([image])]) {
+      const input = Object.freeze({ ...article.data, publicationStatus, coverImage });
+      const data = cmsArticleStorageSchema.parse(input);
+      assert.deepEqual(data, { ...article.data, publicationStatus, coverImage: image });
+      assert.equal(Array.isArray(data.coverImage), false);
+      assert.equal(input.coverImage, coverImage, 'Never rewrite the authored cover');
+      const source = `---\n${JSON.stringify(input)}\n---\n${article.body}`;
+      assert.deepEqual(parseArticle(source), { data, body: article.body });
+      assert.equal(articleReadySchema.safeParse(data).success, publicationStatus === 'published');
+    }
+  }
+  assert.equal(articleStorageSchema.safeParse({ ...article.data, coverImage: [image] }).success, false, 'Canonical schema stays object-only');
+});
+
+test('CMS empty cover lists and omitted covers normalize to absence without changing article content', () => {
+  for (const publicationStatus of ['draft', 'hidden', 'published']) {
+    const expected = { ...article.data, publicationStatus };
+    delete expected.coverImage;
+    for (const coverImage of [undefined, Object.freeze([])]) {
+      const input: Record<string, unknown> = { ...expected };
+      if (coverImage !== undefined) input.coverImage = coverImage;
+      Object.freeze(input);
+      const data = cmsArticleStorageSchema.parse(input);
+      assert.deepEqual(data, expected);
+      assert.equal(Object.hasOwn(data, 'coverImage'), false);
+      assert.equal(Object.hasOwn(input, 'coverImage'), coverImage !== undefined);
+      const source = `---\n${JSON.stringify(input)}\n---\n${article.body}`;
+      assert.deepEqual(parseArticle(source), { data, body: article.body });
+      assert.equal(articleReadySchema.safeParse(data).success, publicationStatus === 'published');
+    }
+  }
+});
+
+test('CMS covers reject multiple items, malformed lists and partial images even in drafts', () => {
+  const image = article.data.coverImage!;
+  for (const publicationStatus of ['draft', 'hidden', 'published']) {
+    for (const coverImage of [[image, image], [image, {}], [{}], [null], [undefined], Array(1), [[]], [''], null, '', false, 0, {}]) {
+      const result = cmsArticleStorageSchema.safeParse({ ...article.data, publicationStatus, coverImage });
+      assert.equal(result.success, false, JSON.stringify(coverImage));
+      if (!result.success) assert.equal(result.error.issues[0].path[0], 'coverImage');
+    }
+  }
+});
+
+test('CMS cover lists cannot bypass path, alt text or authorization validation', () => {
+  const image = article.data.coverImage!;
+  const invalid = [
+    ...['../secret.png', 'src/assets/uploads/../secret.png', 'https://example.invalid/cover.png', '/src/assets/uploads/cover.png', 'src/assets/uploads/nested/cover.png'].map(src => ({ ...image, src })),
+    { ...image, src: undefined }, { ...image, alt: '' }, { ...image, alt: undefined },
+    ...[undefined, {}, { ...image.usage, authorization: 'unknown' }, { ...image.usage, credit: '' }, { ...image.usage, authorizationReference: undefined }].map(usage => ({ ...image, usage })),
+  ];
+  for (const publicationStatus of ['draft', 'hidden', 'published']) {
+    for (const item of invalid) {
+      for (const coverImage of [item, [item]]) {
+        assert.equal(cmsArticleStorageSchema.safeParse({ ...article.data, publicationStatus, coverImage }).success, false);
+      }
+    }
+  }
+});
+
+test('CMS cover normalization does not bypass article dates, citations or publication readiness', () => {
+  for (const coverImage of [[], [article.data.coverImage]]) {
+    assert.equal(cmsArticleStorageSchema.safeParse({ ...article.data, coverImage, updatedDate: '2026-02-29' }).success, false);
+    assert.equal(cmsArticleStorageSchema.safeParse({ ...article.data, coverImage, publicationStatus: 'invalid' }).success, false);
+    const noSources = cmsArticleStorageSchema.parse({ ...article.data, coverImage, sources: [] });
+    assert.throws(() => readyArticle(noSources, article.body));
+    assert.throws(() => readyArticle(cmsArticleStorageSchema.parse({ ...article.data, coverImage }), ''));
+  }
+});
+
+test('CMS cover editor is an optional zero-or-one complete object list with merge retained', async () => {
+  const config = parseYaml(await readFile(new URL('../.pages.yml', import.meta.url), 'utf8'));
+  const guides = config.content.find((item: { name: string }) => item.name === 'neighborhoods');
+  const cover = guides.fields.find((field: { name: string }) => field.name === 'coverImage');
+  assert.equal(cover.component, 'controlled-image');
+  assert.deepEqual(cover.list, { min: 0, max: 1 });
+  assert.equal(cover.required, undefined);
+  assert.equal(Object.hasOwn(cover, 'default'), false);
+  assert.equal(config.settings.content.merge, true);
+  for (const field of config.components['controlled-image'].fields) assert.equal(field.required, true);
+  const usage = config.components['controlled-image'].fields.find((field: { name: string }) => field.name === 'usage');
+  for (const field of usage.fields) assert.equal(field.required, true);
+  assert.equal(config.content.find((item: { name: string }) => item.name === 'properties').fields.find((field: { name: string }) => field.name === 'images').list, true);
+});
+
+test('migrated guide fixtures keep three complete one-item covers and round-trip to the legacy canonical model', async () => {
+  const directory = new URL('../src/content/neighborhoods/', import.meta.url);
+  const files = (await readdir(directory, { recursive: true })).filter(file => file.endsWith('.md')).sort();
+  const covered: string[] = [];
+  for (const file of files) {
+    const source = await readFile(new URL(file.replaceAll('\\', '/'), directory), 'utf8');
+    const raw = parseCmsArticleSource(source);
+    if (!Object.hasOwn(raw.data, 'coverImage')) continue;
+    const covers = raw.data.coverImage;
+    assert.ok(Array.isArray(covers), `${file}: legacy object cover must be migrated`);
+    assert.equal(covers.length, 1, `${file}: existing cover must not be lost or duplicated`);
+    const image = imageSchema.parse(covers[0]);
+    assert.deepEqual(covers[0], image, `${file}: retain the complete canonical metadata`);
+    const parsed = parseArticle(source);
+    assert.deepEqual(parsed.data, cmsArticleStorageSchema.parse({ ...raw.data, coverImage: covers[0] }));
+    assert.equal(parsed.body, raw.body);
+    await resolveUpload(image.src);
+    covered.push(file.replaceAll('\\', '/'));
+  }
+  assert.deepEqual(covered, ['draft-guide.md', 'hidden-guide.md', 'published-guide.md']);
 });
 
 for (const field of measurements) {
