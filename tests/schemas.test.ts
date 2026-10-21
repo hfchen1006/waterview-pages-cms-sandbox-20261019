@@ -113,26 +113,41 @@ test('CMS cover editor is an optional zero-or-one complete object list with merg
   assert.equal(config.content.find((item: { name: string }) => item.name === 'properties').fields.find((field: { name: string }) => field.name === 'images').list, true);
 });
 
-test('migrated guide fixtures keep three complete one-item covers and round-trip to the legacy canonical model', async () => {
+test('guide fixtures retain Published/Hidden cover lists and a coverless Draft after hosted removal', async () => {
   const directory = new URL('../src/content/neighborhoods/', import.meta.url);
   const files = (await readdir(directory, { recursive: true })).filter(file => file.endsWith('.md')).sort();
   const covered: string[] = [];
+  const coverlessDrafts: string[] = [];
   for (const file of files) {
     const source = await readFile(new URL(file.replaceAll('\\', '/'), directory), 'utf8');
     const raw = parseCmsArticleSource(source);
+    const parsed = parseArticle(source);
+    assert.equal(parsed.body, raw.body);
+    if (file === 'draft-guide.md') {
+      assert.equal(raw.data.publicationStatus, 'draft');
+      assert.equal(Object.hasOwn(raw.data, 'coverImage'), false);
+      assert.equal(Object.hasOwn(parsed.data, 'coverImage'), false);
+      // Hosted Pages CMS may remove one final LF without changing article content.
+      // Normalize checkout CRLF and allow only that optional LF; other changes fail.
+      const normalizedBody = raw.body.replace(/\r\n/g, '\n');
+      assert.equal(normalizedBody.replace(/\n$/, ''), 'DRAFT_GUIDE_BODY_ONLY_SENTINEL. This deliberately incomplete article is not public.');
+      coverlessDrafts.push(file);
+      continue;
+    }
     if (!Object.hasOwn(raw.data, 'coverImage')) continue;
     const covers = raw.data.coverImage;
     assert.ok(Array.isArray(covers), `${file}: legacy object cover must be migrated`);
     assert.equal(covers.length, 1, `${file}: existing cover must not be lost or duplicated`);
     const image = imageSchema.parse(covers[0]);
     assert.deepEqual(covers[0], image, `${file}: retain the complete canonical metadata`);
-    const parsed = parseArticle(source);
     assert.deepEqual(parsed.data, cmsArticleStorageSchema.parse({ ...raw.data, coverImage: covers[0] }));
-    assert.equal(parsed.body, raw.body);
+    if (file === 'published-guide.md') assert.equal(parsed.data.publicationStatus, 'published');
+    if (file === 'hidden-guide.md') assert.equal(parsed.data.publicationStatus, 'hidden');
     await resolveUpload(image.src);
     covered.push(file.replaceAll('\\', '/'));
   }
-  assert.deepEqual(covered, ['draft-guide.md', 'hidden-guide.md', 'published-guide.md']);
+  assert.deepEqual(covered, ['hidden-guide.md', 'published-guide.md']);
+  assert.deepEqual(coverlessDrafts, ['draft-guide.md']);
 });
 
 for (const field of measurements) {

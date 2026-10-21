@@ -32,6 +32,13 @@ test('production build, validation failures, publication changes, and actual dis
     if (coverImage === undefined) delete data.coverImage;
     return `---\n${stringifyYaml(data)}---\n${articleMatch[2]}`;
   };
+  const draftMatch = originals.get(draftArticleFile)!.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/)!;
+  const draftData = parseYaml(draftMatch[1]);
+  const draftCover = { ...legacyCoverImage, src: 'src/assets/uploads/draft-guide.png', alt: 'Draft-only synthetic image representing an unfinished imaginary guide' };
+  const draftWithCover = (coverImage: unknown) => {
+    const data = { ...draftData, ...(coverImage === undefined ? {} : { coverImage }) };
+    return `---\n${stringifyYaml(data)}---\n${draftMatch[2]}`;
+  };
   let baselineHtml = '';
   const report: Record<string, unknown> = { purpose: 'Synthetic local POC; no deployment', scenarios: [] };
   const scenarios = report.scenarios as { name: string; passed: boolean; detail?: string }[];
@@ -160,19 +167,48 @@ test('production build, validation failures, publication changes, and actual dis
       } finally { await restore(); }
     });
 
-    await scenario('Draft and Hidden cover lists do not publish their text or image bytes', async () => {
+    await scenario('Draft without a cover and Hidden with a cover do not publish their text or image bytes', async () => {
       try {
         for (const file of [draftArticleFile, hiddenArticleFile]) {
           const source = originals.get(file)!;
           const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/)!;
           const data = parseYaml(match[1]);
-          if (!Array.isArray(data.coverImage)) data.coverImage = [data.coverImage];
-          await writeFile(file, `---\n${stringifyYaml(data)}---\n${match[2]}`);
+          if (Object.hasOwn(data, 'coverImage')) {
+            assert.equal(file, hiddenArticleFile);
+            assert.equal(data.publicationStatus, 'hidden');
+            assert.ok(Array.isArray(data.coverImage));
+            assert.equal(data.coverImage.length, 1);
+          } else {
+            assert.equal(file, draftArticleFile);
+            assert.equal(data.publicationStatus, 'draft');
+          }
         }
         await build();
-        await outputAudit();
+        const audit = await outputAudit();
+        assert.equal(audit.html, baselineHtml);
       } finally { await restore(); }
     });
+
+    await scenario('Draft with a complete one-item cover remains private with its original and transformed assets excluded', async () => {
+      try {
+        await writeFile(draftArticleFile, draftWithCover([draftCover]));
+        await build();
+        const audit = await outputAudit();
+        assert.equal(audit.html, baselineHtml);
+      } finally { await restore(); }
+    });
+
+    // YAML serializes undefined array items as null; the raw [undefined] input
+    // is also rejected directly by the existing CMS schema unit tests.
+    for (const [name, coverImage, message] of [
+      ['null item', [null], /coverImage/],
+      ['undefined item serialized as null', [undefined], /coverImage/],
+      ['partial image', [{ src: draftCover.src }], /coverImage/],
+      ['missing authorization', [{ ...draftCover, usage: undefined }], /usage/],
+      ['invalid authorization', [{ ...draftCover, usage: { ...draftCover.usage, authorization: 'unknown' } }], /authorization/],
+    ] as const) {
+      await invalidBuild(`Draft cover list rejects ${name}`, draftArticleFile, draftWithCover(coverImage), message);
+    }
 
     for (const [name, coverImage, message] of [
       ['multiple covers', [legacyCoverImage, legacyCoverImage], /coverImage/],
