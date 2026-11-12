@@ -1,6 +1,6 @@
 ---
 slug: synthetic-trial-guide
-publicationStatus: draft
+publicationStatus: published
 title: SYNTHETIC TEST - Neighborhood Guide (saved)
 area: Fictional Test District
 summary: SYNTHETIC TEST ONLY. This invented guide contains no actual
