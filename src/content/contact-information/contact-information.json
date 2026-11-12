@@ -1,4 +1,46 @@
 {
   "id": "contact-information",
-  "publicationStatus": "draft"
+  "publicationStatus": "draft",
+  "publicDetails": {
+    "emailState": "known",
+    "email": "cms-trial@example.invalid",
+    "phoneState": "unknown",
+    "officeDetailsState": "known",
+    "officeDetails": "SYNTHETIC TEST OFFICE - NOT A REAL ADDRESS",
+    "hoursState": "known"
+  },
+  "page": {
+    "seo": {
+      "title": "Synthetic Contact title",
+      "description": "Synthetic contact search description"
+    },
+    "intro": {
+      "eyebrow": "Synthetic contact",
+      "title": "SYNTHETIC CONTACT INFORMATION",
+      "description": "Synthetic contact introduction; no actual contact service"
+    },
+    "notice": {
+      "eyebrow": "Synthetic notice",
+      "heading": "No real contact service",
+      "description": "SYNTHETIC TEST ONLY. This page does not send messages."
+    },
+    "labels": {
+      "email": "Synthetic email",
+      "phone": "Synthetic phone",
+      "officeDetailsAndHours": "Synthetic office and hours"
+    },
+    "unavailableText": "Synthetic information unavailable",
+    "inquiry": {
+      "eyebrow": "Synthetic guidance",
+      "heading": "Synthetic inquiry guidance",
+      "description": "Synthetic written guidance only",
+      "checklist": {
+        "propertyOrArea": "Synthetic property or area",
+        "moveInTiming": "Synthetic timing",
+        "homeNeeds": "Synthetic needs",
+        "availabilityOrTour": "Synthetic availability"
+      },
+      "ctaLabel": "Synthetic properties link"
+    }
+  }
 }
