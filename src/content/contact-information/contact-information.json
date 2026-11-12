@@ -3,10 +3,11 @@
   "publicationStatus": "draft",
   "publicDetails": {
     "emailState": "unknown",
-    "phoneState": "unknown",
+    "phoneState": "known",
     "officeDetailsState": "not-set",
     "officeDetails": "SYNTHETIC TEST OFFICE - NOT A REAL ADDRESS",
-    "hoursState": "unknown"
+    "hoursState": "unknown",
+    "phone": "202-555-0100"
   },
   "page": {
     "seo": {
