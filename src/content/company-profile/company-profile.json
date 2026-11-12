@@ -1,4 +1,40 @@
 {
   "id": "company-profile",
-  "publicationStatus": "draft"
+  "publicationStatus": "draft",
+  "name": "SYNTHETIC TEST COMPANY - NOT A BUSINESS",
+  "about": {
+    "seo": {
+      "title": "Synthetic About title",
+      "description": "Synthetic company search description"
+    },
+    "intro": {
+      "eyebrow": "Synthetic company",
+      "title": "SYNTHETIC TEST COMPANY",
+      "description": "Synthetic company introduction; no actual business"
+    },
+    "overview": {
+      "eyebrow": "Synthetic background",
+      "heading": "Synthetic company background",
+      "paragraph1": "SYNTHETIC TEST ONLY. This company does not exist.",
+      "paragraph2": "These invented paragraphs test the fixed About content fields."
+    },
+    "resources": {
+      "heading": "Synthetic resources",
+      "properties": {
+        "title": "Synthetic property card",
+        "description": "Synthetic property resource description",
+        "ctaLabel": "Synthetic properties link"
+      },
+      "neighborhoods": {
+        "title": "Synthetic guide card",
+        "description": "Synthetic guide resource description",
+        "ctaLabel": "Synthetic guides link"
+      },
+      "marketInsights": {
+        "title": "Synthetic insights card",
+        "description": "Synthetic insights resource description",
+        "ctaLabel": "Synthetic insights link"
+      }
+    }
+  }
 }
