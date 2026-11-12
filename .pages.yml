@@ -1,0 +1,629 @@
+# Adapted from Pages CMS sandbox d92fceb66508334b71d8987e966b62dada651a24.
+# Locally prepared only. Private hosted access and Save/reopen still need approval/testing.
+# Canonical validation is authoritative. This configuration does not publish or deploy.
+
+media:
+  - name: uploads
+    label: PNG uploads
+    input: src/assets/uploads
+    output: src/assets/uploads
+    extensions:
+      - png
+    rename: false
+components:
+  nullable-state:
+    type: select
+    description: Choose Known and enter the value, or choose Unknown and clear the value. Choose Not Set to remove
+      the state choice while keeping any saved value. A blank Published field needs Unknown.
+    options:
+      values:
+        - name: not-set
+          label: Not Set
+        - name: known
+          label: Known (enter the value)
+        - name: unknown
+          label: Unknown (leave the value blank)
+  publication-status:
+    type: select
+    label: Publication status
+    default: draft
+    description: Draft and Hidden are excluded from built public content. Save stores a revision; Published must
+      pass validation. Saving does not deploy.
+    options:
+      values:
+        - name: draft
+          label: Draft
+        - name: published
+          label: Published
+        - name: hidden
+          label: Hidden
+  controlled-image:
+    type: object
+    description: Each image needs its PNG path, description, public credit and rights assertion. Keep originals
+      under src/assets/uploads.
+    fields:
+      - name: src
+        label: PNG image
+        type: image
+        required: true
+        description: Use src/assets/uploads/example-name.png. Do not use URLs, folders, spaces, uppercase names or a
+          leading slash.
+        options:
+          media: uploads
+          multiple: false
+          extensions:
+            - png
+          rename: false
+      - name: alt
+        label: Image description (alt text)
+        type: string
+        required: true
+        options:
+          minlength: 10
+        description: Describe the image meaningfully; the canonical schema checks visible characters.
+      - name: credit
+        label: Public credit
+        type: string
+        required: true
+      - name: rights
+        label: Usage permission (internal)
+        type: object
+        required: true
+        fields:
+          - name: authorization
+            label: Authorization basis
+            type: select
+            required: true
+            options:
+              values:
+                - synthetic
+                - owned
+                - licensed
+                - permission
+          - name: reference
+            label: Permission or license reference
+            type: text
+            required: true
+            description: Internal evidence; do not include secrets.
+content:
+  - name: properties
+    label: Properties
+    type: collection
+    path: src/content/properties
+    format: json
+    subfolders: false
+    filename:
+      template: "{fields.id}.json"
+      field: false
+    operations:
+      create: true
+      rename: false
+      delete: false
+    view:
+      primary: title
+      fields:
+        - title
+        - id
+        - publicationStatus
+        - availability
+    fields:
+      - name: id
+        label: Stable property ID
+        type: string
+        required: true
+        pattern:
+          regex: ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+          message: Use a lowercase identifier beginning with a letter, with single hyphens between words.
+        description: Set once for a new property. Never change an existing ID. Duplicate IDs fail the Astro build.
+      - name: publicationStatus
+        component: publication-status
+      - name: title
+        label: Title
+        type: string
+      - name: location
+        label: Location
+        type: string
+      - name: monthlyRentState
+        label: Is the monthly rent known?
+        component: nullable-state
+      - name: monthlyRent
+        label: Monthly rent (USD)
+        type: number
+        options:
+          min: 0
+          step: any
+        description: Enter the actual rent for Known. For Unknown, clear this value and select Unknown above. Zero
+          means an actual rent of zero.
+      - name: bedroomsState
+        label: Is the bedroom count known?
+        component: nullable-state
+      - name: bedrooms
+        label: Bedrooms
+        type: number
+        options:
+          min: 0
+          step: 1
+        description: Enter a whole number for Known; zero means Studio. For Unknown, clear this value and select
+          Unknown above.
+      - name: bathroomsState
+        label: Is the bathroom count known?
+        component: nullable-state
+      - name: bathrooms
+        label: Bathrooms
+        type: number
+        options:
+          min: 0
+          step: any
+        description: Enter the actual count for Known; fractional values such as 1.5 are valid. For Unknown, clear
+          this value and select Unknown above.
+      - name: squareFeetState
+        label: Is the floor area known?
+        component: nullable-state
+      - name: squareFeet
+        label: Floor area (square feet)
+        type: number
+        options:
+          min: 0
+          step: any
+        description: Enter the actual area for Known. For Unknown, clear this value and select Unknown above. Never
+          use zero to mean unknown.
+      - name: availability
+        label: Availability
+        type: select
+        description: Independent of publication status. Select before publication.
+        options:
+          values:
+            - name: available
+              label: Available
+            - name: coming-soon
+              label: Coming Soon
+            - name: unavailable
+              label: Unavailable
+      - name: description
+        label: Description
+        type: text
+        description: Plain text. Required with meaningful visible content before publication.
+      - name: images
+        label: Property images
+        component: controlled-image
+        list:
+          min: 0
+        description: Zero or more images. Canonical publication requires an images array, including [] for none.
+          Hosted empty-list serialization still needs verification; never add a placeholder image.
+  - name: neighborhoodGuides
+    label: Neighborhood Guides
+    type: collection
+    path: src/content/neighborhood-guides
+    format: yaml-frontmatter
+    subfolders: false
+    filename:
+      template: "{fields.slug}.md"
+      field: false
+    operations:
+      create: true
+      rename: false
+      delete: false
+    view:
+      primary: title
+      fields:
+        - title
+        - slug
+        - publicationStatus
+        - area
+    fields:
+      - name: slug
+        label: Stable guide slug
+        type: string
+        required: true
+        pattern:
+          regex: ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+          message: Use a lowercase identifier beginning with a letter, with single hyphens between words.
+        description: Set once for a new guide. Never change an existing slug. Duplicate slugs fail the Astro build.
+      - name: publicationStatus
+        component: publication-status
+      - name: title
+        label: Title
+        type: string
+      - name: area
+        label: Neighborhood or area
+        type: string
+      - name: summary
+        label: Summary
+        type: text
+        description: Meaningful visible summary; required before publication.
+      - name: updatedAtState
+        label: Is the verified update date known?
+        component: nullable-state
+      - name: updatedAt
+        label: Verified update date
+        type: date
+        default: ""
+        options:
+          time: false
+          format: yyyy-MM-dd
+        description: For Known, enter a verified YYYY-MM-DD date. For Unknown, clear this date and select Unknown
+          above. Never guess a date.
+      - name: sources
+        label: Source references
+        type: object
+        list: true
+        description: Optional in drafts; publication requires at least one complete source.
+        fields:
+          - name: title
+            label: Source title
+            type: string
+            required: true
+          - name: url
+            label: Source URL
+            type: string
+            required: true
+            description: HTTPS without embedded credentials. Astro validates the URL.
+      - name: coverImage
+        label: Optional cover image
+        component: controlled-image
+        list:
+          min: 0
+          max: 1
+        description: Add one complete cover image, or use Remove item on the whole entry to remove the cover. Deleting
+          only the PNG leaves an incomplete entry. Existing object covers must be migrated before using this
+          editor.
+      - name: body
+        label: Article body
+        type: rich-text
+        description: Markdown body, separate from frontmatter. Published bodies pass the existing Markdown gate. No
+          raw HTML or inline images.
+        options:
+          format: markdown
+          media: false
+          switcher: true
+  - name: marketInsights
+    label: Market Insights
+    type: collection
+    path: src/content/market-insights
+    format: yaml-frontmatter
+    subfolders: false
+    filename:
+      template: "{fields.slug}.md"
+      field: false
+    operations:
+      create: true
+      rename: false
+      delete: false
+    view:
+      primary: title
+      fields:
+        - title
+        - slug
+        - publicationStatus
+        - area
+    fields:
+      - name: slug
+        label: Stable guide slug
+        type: string
+        required: true
+        pattern:
+          regex: ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+          message: Use a lowercase identifier beginning with a letter, with single hyphens between words.
+        description: Set once for a new guide. Never change an existing slug. Duplicate slugs fail the Astro build.
+      - name: publicationStatus
+        component: publication-status
+      - name: title
+        label: Title
+        type: string
+      - name: area
+        label: Neighborhood or area
+        type: string
+      - name: summary
+        label: Summary
+        type: text
+        description: Meaningful visible summary; required before publication.
+      - name: updatedAtState
+        label: Is the verified update date known?
+        component: nullable-state
+      - name: updatedAt
+        label: Verified update date
+        type: date
+        default: ""
+        options:
+          time: false
+          format: yyyy-MM-dd
+        description: For Known, enter a verified YYYY-MM-DD date. For Unknown, clear this date and select Unknown
+          above. Never guess a date.
+      - name: publishedAtState
+        label: Is the publication date known?
+        component: nullable-state
+      - name: publishedAt
+        label: Verified publication date
+        type: date
+        default: ""
+        options:
+          time: false
+          format: yyyy-MM-dd
+        description: Independent of the update date. Use a verified date, or Unknown with the date cleared.
+      - name: sources
+        label: Source references
+        type: object
+        list: true
+        description: Optional in drafts; publication requires at least one complete source.
+        fields:
+          - name: title
+            label: Source title
+            type: string
+            required: true
+          - name: url
+            label: Source URL
+            type: string
+            required: true
+            description: HTTPS without embedded credentials. Astro validates the URL.
+      - name: coverImage
+        label: Optional cover image
+        component: controlled-image
+        list:
+          min: 0
+          max: 1
+        description: Add one complete cover image, or use Remove item on the whole entry to remove the cover. Deleting
+          only the PNG leaves an incomplete entry. Existing object covers must be migrated before using this
+          editor.
+      - name: body
+        label: Article body
+        type: rich-text
+        description: Markdown body, separate from frontmatter. Published bodies pass the existing Markdown gate. No
+          raw HTML or inline images.
+        options:
+          format: markdown
+          media: false
+          switcher: true
+  - name: companyProfile
+    label: Company / About
+    type: file
+    path: src/content/company-profile/company-profile.json
+    format: json
+    operations:
+      delete: false
+      rename: false
+    fields:
+      - name: id
+        label: Fixed record ID
+        type: string
+        required: true
+        readonly: true
+        default: company-profile
+      - name: publicationStatus
+        component: publication-status
+      - name: name
+        label: Company name
+        type: string
+      - name: about
+        label: About page
+        type: object
+        fields:
+          - name: seo
+            label: Search appearance
+            type: object
+            fields:
+              - name: title
+                label: Search title
+                type: string
+              - name: description
+                label: Search description
+                type: text
+          - name: intro
+            label: Page introduction
+            type: object
+            fields:
+              - name: eyebrow
+                label: Small label
+                type: string
+              - name: title
+                label: Page title
+                type: string
+              - name: description
+                label: Description
+                type: text
+          - name: overview
+            label: Company background
+            type: object
+            fields:
+              - name: eyebrow
+                label: Small label
+                type: string
+              - name: heading
+                label: Section heading
+                type: string
+              - name: paragraph1
+                label: First paragraph
+                type: text
+              - name: paragraph2
+                label: Second paragraph
+                type: text
+          - name: resources
+            label: Resource cards
+            type: object
+            fields:
+              - name: heading
+                label: Section heading
+                type: string
+              - name: properties
+                label: Properties
+                type: object
+                fields:
+                  - name: title
+                    label: Title
+                    type: string
+                  - name: description
+                    label: Description
+                    type: text
+                  - name: ctaLabel
+                    label: Link wording
+                    type: string
+              - name: neighborhoods
+                label: Neighborhood Guides
+                type: object
+                fields:
+                  - name: title
+                    label: Title
+                    type: string
+                  - name: description
+                    label: Description
+                    type: text
+                  - name: ctaLabel
+                    label: Link wording
+                    type: string
+              - name: marketInsights
+                label: Market Insights
+                type: object
+                fields:
+                  - name: title
+                    label: Title
+                    type: string
+                  - name: description
+                    label: Description
+                    type: text
+                  - name: ctaLabel
+                    label: Link wording
+                    type: string
+  - name: contactInformation
+    label: Contact Information
+    type: file
+    path: src/content/contact-information/contact-information.json
+    format: json
+    operations:
+      delete: false
+      rename: false
+    fields:
+      - name: id
+        label: Fixed record ID
+        type: string
+        required: true
+        readonly: true
+        default: contact-information
+      - name: publicationStatus
+        component: publication-status
+      - name: publicDetails
+        label: Public contact details
+        type: object
+        fields:
+          - name: emailState
+            label: Is public email available?
+            component: nullable-state
+          - name: email
+            label: Public email
+            type: string
+            description: "Known requires a valid value. Unknown means unavailable: clear this value. Not Set preserves
+              only what the editor retains."
+          - name: phoneState
+            label: Is public phone available?
+            component: nullable-state
+          - name: phone
+            label: Public phone
+            type: string
+            description: "Known requires a valid value. Unknown means unavailable: clear this value. Not Set preserves
+              only what the editor retains."
+          - name: officeDetailsState
+            label: Is office details available?
+            component: nullable-state
+          - name: officeDetails
+            label: Office details
+            type: text
+            description: "Known requires a valid value. Unknown means unavailable: clear this value. Not Set preserves
+              only what the editor retains."
+          - name: hoursState
+            label: Is office hours available?
+            component: nullable-state
+          - name: hours
+            label: Office hours
+            type: text
+            description: "Known requires a valid value. Unknown means unavailable: clear this value. Not Set preserves
+              only what the editor retains."
+      - name: page
+        label: Page wording
+        type: object
+        fields:
+          - name: seo
+            label: Search appearance
+            type: object
+            fields:
+              - name: title
+                label: Search title
+                type: string
+              - name: description
+                label: Search description
+                type: text
+          - name: intro
+            label: Page introduction
+            type: object
+            fields:
+              - name: eyebrow
+                label: Small label
+                type: string
+              - name: title
+                label: Page title
+                type: string
+              - name: description
+                label: Description
+                type: text
+          - name: notice
+            label: Notice
+            type: object
+            fields:
+              - name: eyebrow
+                label: Small label
+                type: string
+              - name: heading
+                label: Heading
+                type: string
+              - name: description
+                label: Description
+                type: text
+          - name: labels
+            label: Detail labels
+            type: object
+            fields:
+              - name: email
+                label: Email label
+                type: string
+              - name: phone
+                label: Phone label
+                type: string
+              - name: officeDetailsAndHours
+                label: Office label
+                type: string
+          - name: unavailableText
+            label: Unavailable wording
+            type: string
+          - name: inquiry
+            label: Inquiry guidance (text only)
+            type: object
+            fields:
+              - name: eyebrow
+                label: Small label
+                type: string
+              - name: heading
+                label: Heading
+                type: string
+              - name: description
+                label: Description
+                type: text
+              - name: checklist
+                label: Preparation checklist
+                type: object
+                fields:
+                  - name: propertyOrArea
+                    label: Property or area
+                    type: string
+                  - name: moveInTiming
+                    label: Move-in timing
+                    type: string
+                  - name: homeNeeds
+                    label: Home needs
+                    type: string
+                  - name: availabilityOrTour
+                    label: Availability or tour
+                    type: string
+              - name: ctaLabel
+                label: Link wording
+                type: string
+settings:
+  hide: true
+  content:
+    merge: true

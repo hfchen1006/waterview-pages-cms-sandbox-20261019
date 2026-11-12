@@ -1,0 +1,26 @@
+{
+  "id": "synthetic-trial-studio",
+  "publicationStatus": "draft",
+  "title": "SYNTHETIC TEST - Studio",
+  "location": "Fictional Test District",
+  "monthlyRent": 0,
+  "monthlyRentState": "known",
+  "bedrooms": 0,
+  "bedroomsState": "known",
+  "bathrooms": 1.5,
+  "bathroomsState": "known",
+  "squareFeetState": "unknown",
+  "availability": "coming-soon",
+  "description": "SYNTHETIC TEST ONLY. This fictional property is not offered for rent.",
+  "images": [
+    {
+      "src": "src/assets/uploads/synthetic-trial-primary.png",
+      "alt": "Synthetic blue and gold stripe pattern for CMS testing",
+      "credit": "Synthetic CMS trial artwork",
+      "rights": {
+        "authorization": "synthetic",
+        "reference": "Generated stripe fixture for this synthetic CMS trial; no third-party material"
+      }
+    }
+  ]
+}
