@@ -2,11 +2,12 @@
   "id": "contact-information",
   "publicationStatus": "draft",
   "publicDetails": {
-    "emailState": "unknown",
+    "emailState": "known",
     "phoneState": "unknown",
-    "officeDetailsState": "not-set",
+    "officeDetailsState": "known",
     "officeDetails": "SYNTHETIC TEST OFFICE - NOT A REAL ADDRESS",
-    "hoursState": "unknown"
+    "hoursState": "unknown",
+    "email": "cms-trial@example.invalid"
   },
   "page": {
     "seo": {
