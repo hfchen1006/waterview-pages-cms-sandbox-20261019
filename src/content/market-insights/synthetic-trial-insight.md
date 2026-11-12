@@ -11,14 +11,6 @@ sources:
 updatedAtState: known
 publishedAt: 2024-02-29
 publishedAtState: known
-coverImage:
-  - src: src/assets/uploads/synthetic-trial-alternate.png
-    alt: Synthetic blue and gold stripe pattern for CMS testing
-    credit: Synthetic CMS trial artwork
-    rights:
-      authorization: synthetic
-      reference: Generated stripe fixture for this synthetic CMS trial; no third-party
-        material
 updatedAt: 2024-03-02
 ---
 # Synthetic editor trial
