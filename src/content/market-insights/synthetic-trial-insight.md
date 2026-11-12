@@ -1,6 +1,6 @@
 ---
 slug: synthetic-trial-insight
-publicationStatus: draft
+publicationStatus: published
 title: SYNTHETIC TEST - Market Insight (saved)
 area: Fictional Test District
 summary: SYNTHETIC TEST ONLY. This invented article contains no actual market
