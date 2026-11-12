@@ -1,6 +1,6 @@
 {
   "id": "contact-information",
-  "publicationStatus": "draft",
+  "publicationStatus": "published",
   "publicDetails": {
     "emailState": "known",
     "phoneState": "unknown",
