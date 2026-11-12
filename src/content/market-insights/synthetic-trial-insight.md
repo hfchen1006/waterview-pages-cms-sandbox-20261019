@@ -8,7 +8,7 @@ summary: SYNTHETIC TEST ONLY. This invented article contains no actual market
 sources:
   - title: Synthetic reference; not factual evidence
     url: https://example.invalid/synthetic-cms-reference
-updatedAtState: unknown
+updatedAtState: known
 publishedAt: 2024-02-29
 publishedAtState: not-set
 coverImage:
@@ -19,6 +19,7 @@ coverImage:
       authorization: synthetic
       reference: Generated stripe fixture for this synthetic CMS trial; no third-party
         material
+updatedAt: 2024-03-02
 ---
 # Synthetic editor trial
 
