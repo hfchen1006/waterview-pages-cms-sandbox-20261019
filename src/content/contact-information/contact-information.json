@@ -7,7 +7,7 @@
     "phoneState": "unknown",
     "officeDetailsState": "known",
     "officeDetails": "SYNTHETIC TEST OFFICE - NOT A REAL ADDRESS",
-    "hoursState": "known"
+    "hoursState": "unknown"
   },
   "page": {
     "seo": {
