@@ -2,8 +2,7 @@
   "id": "contact-information",
   "publicationStatus": "draft",
   "publicDetails": {
-    "emailState": "known",
-    "email": "cms-trial@example.invalid",
+    "emailState": "unknown",
     "phoneState": "unknown",
     "officeDetailsState": "known",
     "officeDetails": "SYNTHETIC TEST OFFICE - NOT A REAL ADDRESS",
