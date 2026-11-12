@@ -8,8 +8,7 @@ summary: SYNTHETIC TEST ONLY. This invented article contains no actual market
 sources:
   - title: Synthetic reference; not factual evidence
     url: https://example.invalid/synthetic-cms-reference
-updatedAt: 2024-03-02
-updatedAtState: known
+updatedAtState: unknown
 publishedAt: 2024-02-29
 publishedAtState: known
 coverImage:
