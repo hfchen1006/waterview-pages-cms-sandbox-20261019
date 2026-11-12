@@ -4,7 +4,7 @@
   "publicDetails": {
     "emailState": "unknown",
     "phoneState": "unknown",
-    "officeDetailsState": "known",
+    "officeDetailsState": "not-set",
     "officeDetails": "SYNTHETIC TEST OFFICE - NOT A REAL ADDRESS",
     "hoursState": "unknown"
   },
