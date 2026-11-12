@@ -1,13 +1,12 @@
 {
   "id": "synthetic-trial-no-photo",
   "publicationStatus": "draft",
-  "title": "SYNTHETIC TEST - No photograph",
+  "title": "SYNTHETIC TEST - No photograph (saved)",
   "location": "Fictional Test District",
   "monthlyRentState": "unknown",
   "bedroomsState": "unknown",
   "bathroomsState": "unknown",
   "squareFeetState": "unknown",
   "availability": "unavailable",
-  "description": "SYNTHETIC TEST ONLY. Empty-gallery serialization fixture; no real listing.",
-  "images": []
+  "description": "SYNTHETIC TEST ONLY. Empty-gallery serialization fixture; no real listing."
 }
