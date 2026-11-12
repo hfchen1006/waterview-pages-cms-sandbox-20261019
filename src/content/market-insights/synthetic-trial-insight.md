@@ -10,7 +10,7 @@ sources:
     url: https://example.invalid/synthetic-cms-reference
 updatedAtState: known
 publishedAt: 2024-02-29
-publishedAtState: not-set
+publishedAtState: known
 coverImage:
   - src: src/assets/uploads/synthetic-trial-alternate.png
     alt: Synthetic blue and gold stripe pattern for CMS testing
