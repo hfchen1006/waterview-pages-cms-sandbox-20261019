@@ -183,13 +183,22 @@ content:
         label: Description
         type: text
         description: Plain text. Required with meaningful visible content before publication.
+      - name: imagesState
+        label: Photograph intent
+        type: select
+        description: Choose empty only after removing every image item. Choose provided when supplying complete images. Leave unselected for an incomplete draft; no intent is inferred.
+        options:
+          values:
+            - name: empty
+              label: No photos (intentional)
+            - name: provided
+              label: Photos supplied
       - name: images
         label: Property images
         component: controlled-image
         list:
           min: 0
-        description: Zero or more images. Canonical publication requires an images array, including [] for none.
-          Hosted empty-list serialization still needs verification; never add a placeholder image.
+        description: Zero or more complete images. Select empty above for an intentionally empty gallery; provided requires at least one item. Remove whole items rather than only the PNG. New hosted intent round trips remain unverified.
   - name: neighborhoodGuides
     label: Neighborhood Guides
     type: collection
