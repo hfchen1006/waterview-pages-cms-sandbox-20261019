@@ -5,7 +5,7 @@
   "location": "Fictional Test District",
   "monthlyRentState": "known",
   "bedrooms": 0,
-  "bedroomsState": "not-set",
+  "bedroomsState": "known",
   "bathrooms": 1.5,
   "bathroomsState": "known",
   "squareFeetState": "unknown",
