@@ -3,7 +3,7 @@
   "publicationStatus": "draft",
   "title": "SYNTHETIC TEST - Studio (saved)",
   "location": "Fictional Test District",
-  "monthlyRentState": "unknown",
+  "monthlyRentState": "not-set",
   "bedrooms": 0,
   "bedroomsState": "known",
   "bathrooms": 1.5,
