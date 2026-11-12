@@ -16,7 +16,8 @@ coverImage:
     credit: Synthetic CMS trial artwork
     rights:
       authorization: synthetic
-      reference: synthetic
+      reference: Generated stripe fixture for this synthetic CMS trial; no third-party
+        material
 ---
 # Synthetic editor trial
 
