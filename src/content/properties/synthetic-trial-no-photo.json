@@ -9,16 +9,5 @@
   "squareFeetState": "unknown",
   "availability": "unavailable",
   "description": "SYNTHETIC TEST ONLY. Empty-gallery serialization fixture; no real listing.",
-  "imagesState": "provided",
-  "images": [
-    {
-      "src": "src/assets/uploads/synthetic-trial-primary.png",
-      "alt": "Synthetic blue and gold stripe pattern for CMS testing",
-      "credit": "Synthetic CMS trial artwork",
-      "rights": {
-        "authorization": "synthetic",
-        "reference": "Generated stripe fixture for this synthetic CMS trial; no third-party material"
-      }
-    }
-  ]
+  "imagesState": "empty"
 }
