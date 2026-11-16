@@ -9,5 +9,5 @@
   "squareFeetState": "unknown",
   "availability": "unavailable",
   "description": "SYNTHETIC TEST ONLY. Empty-gallery serialization fixture; no real listing.",
-  "imagesState": "provided"
+  "imagesState": "empty"
 }
